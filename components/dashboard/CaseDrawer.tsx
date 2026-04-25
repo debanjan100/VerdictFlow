@@ -9,8 +9,32 @@ import { CaseTimeline } from "@/components/dashboard/CaseTimeline"
 import { cn } from "@/lib/utils"
 import type { MockCase } from "@/lib/mockData"
 
-function countdown(deadline: string) {
-  const diff = new Date(deadline).getTime() - Date.now()
+// Database case type
+interface DatabaseCase {
+  id: string
+  case_number: string | null
+  case_title: string | null
+  court_name: string | null
+  judgment_date: string | null
+  pdf_filename: string
+  pdf_url: string
+  status: string
+  created_at: string
+  updated_at: string
+  priority: string
+  departments?: {
+    name: string
+  } | null
+  users?: {
+    full_name: string | null
+  } | null
+}
+
+function countdown(createdAt: string) {
+  // Since we don't have deadline in DB, use created_at + 30 days as mock deadline
+  const mockDeadline = new Date(createdAt)
+  mockDeadline.setDate(mockDeadline.getDate() + 30)
+  const diff = mockDeadline.getTime() - Date.now()
   if (diff <= 0) return { label: "Overdue", urgent: true }
   const days = Math.floor(diff / (1000 * 60 * 60 * 24))
   if (days === 0) return { label: "Due Today", urgent: true }
@@ -19,7 +43,7 @@ function countdown(deadline: string) {
 }
 
 interface CaseDrawerProps {
-  caseData: MockCase | null
+  caseData: DatabaseCase | null
   onClose: () => void
 }
 
@@ -39,7 +63,7 @@ export function CaseDrawer({ caseData, onClose }: CaseDrawerProps) {
     return () => { document.body.style.overflow = "" }
   }, [caseData])
 
-  const cd = caseData ? countdown(caseData.deadline) : null
+  const cd = caseData ? countdown(caseData.created_at) : null
 
   return (
     <AnimatePresence>
@@ -73,8 +97,8 @@ export function CaseDrawer({ caseData, onClose }: CaseDrawerProps) {
                   <StatusBadge status={caseData.status} size="sm" />
                   <StatusBadge status={caseData.priority} size="sm" />
                 </div>
-                <h2 className="text-lg font-bold leading-tight">{caseData.case_number}</h2>
-                <p className="text-sm text-muted-foreground mt-0.5 line-clamp-2">{caseData.case_title}</p>
+                <h2 className="text-lg font-bold leading-tight">{caseData.case_number || "Case Details"}</h2>
+                <p className="text-sm text-muted-foreground mt-0.5 line-clamp-2">{caseData.case_title || "Untitled Case"}</p>
               </div>
               <Button variant="ghost" size="icon" onClick={onClose} className="shrink-0">
                 <X className="h-4 w-4" />
@@ -86,10 +110,10 @@ export function CaseDrawer({ caseData, onClose }: CaseDrawerProps) {
               {/* Metadata grid */}
               <div className="grid grid-cols-2 gap-3">
                 {[
-                  { icon: Building2, label: "Court",     value: caseData.court },
-                  { icon: FileText,  label: "Department", value: caseData.department },
-                  { icon: Calendar,  label: "Filed",      value: new Date(caseData.date_filed).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) },
-                  { icon: User,      label: "Officer",    value: caseData.assigned_officer },
+                  { icon: Building2, label: "Court", value: caseData.court_name || "Unknown" },
+                  { icon: FileText, label: "Department", value: caseData.departments?.name || "Unassigned" },
+                  { icon: Calendar, label: "Filed", value: caseData.judgment_date ? new Date(caseData.judgment_date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "N/A" },
+                  { icon: User, label: "Uploaded by", value: caseData.users?.full_name || "Unknown" },
                 ].map(({ icon: Icon, label, value }) => (
                   <div key={label} className="rounded-lg bg-secondary/50 border border-border p-3">
                     <div className="flex items-center gap-1.5 mb-1">
@@ -101,52 +125,24 @@ export function CaseDrawer({ caseData, onClose }: CaseDrawerProps) {
                 ))}
               </div>
 
-              {/* Deadline */}
-              <div className={cn(
-                "flex items-center gap-3 p-4 rounded-xl border",
-                cd?.urgent
-                  ? "border-red-500/40 bg-red-500/10"
-                  : "border-border bg-secondary/30"
-              )}>
-                <Clock className={cn("h-5 w-5 shrink-0", cd?.urgent ? "text-red-400" : "text-muted-foreground")} />
-                <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Deadline</p>
-                  <p className={cn("text-sm font-bold", cd?.urgent ? "text-red-400" : "text-foreground")}>
-                    {new Date(caseData.deadline).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}
-                    &nbsp;— {cd?.label}
-                  </p>
+              {/* Timeline */}
+              <div>
+                <h3 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wide">Case Timeline</h3>
+                <CaseTimeline createdAt={caseData.created_at} />
+              </div>
+
+              {/* PDF Link */}
+              <div className="flex items-center gap-3 p-4 rounded-xl border border-border bg-secondary/30">
+                <ExternalLink className="h-5 w-5 shrink-0 text-muted-foreground" />
+                <div className="flex-1">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Original Judgment</p>
+                  <p className="text-sm font-medium">{caseData.pdf_filename}</p>
                 </div>
-              </div>
-
-              {/* Action Summary */}
-              <div>
-                <h3 className="text-sm font-semibold mb-2 text-muted-foreground uppercase tracking-wide">Action Summary</h3>
-                <p className="text-sm leading-relaxed text-foreground/90 bg-secondary/30 p-4 rounded-lg border border-border">
-                  {caseData.action_summary}
-                </p>
-              </div>
-
-              {/* Compliance Actions */}
-              <div>
-                <h3 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wide">
-                  Compliance Actions ({caseData.compliance_actions.length})
-                </h3>
-                <ul className="space-y-2">
-                  {caseData.compliance_actions.map((action, i) => (
-                    <motion.li
-                      key={i}
-                      initial={{ opacity: 0, x: -8 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: i * 0.06 }}
-                      className="flex items-start gap-2.5 text-sm p-3 rounded-lg bg-blue-500/5 border border-blue-500/15"
-                    >
-                      <span className="flex-shrink-0 h-5 w-5 rounded-full bg-blue-500/20 text-blue-400 text-[11px] font-bold flex items-center justify-center mt-0.5">
-                        {i + 1}
-                      </span>
-                      <span>{action}</span>
-                    </motion.li>
-                  ))}
-                </ul>
+                <Button variant="outline" size="sm" asChild>
+                  <a href={caseData.pdf_url} target="_blank" rel="noopener noreferrer">
+                    View PDF
+                  </a>
+                </Button>
               </div>
 
               {/* Case Timeline */}
@@ -155,14 +151,17 @@ export function CaseDrawer({ caseData, onClose }: CaseDrawerProps) {
                 <CaseTimeline createdAt={caseData.created_at} />
               </div>
 
-              {/* PDF Preview placeholder */}
-              <div className="rounded-xl border border-border bg-secondary/20 p-6 text-center">
-                <FileText className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-                <p className="text-sm font-medium mb-1">{caseData.pdf_filename}</p>
-                <p className="text-xs text-muted-foreground mb-3">PDF Judgment Document</p>
-                <Button variant="outline" size="sm" className="gap-2">
-                  <ExternalLink className="h-3.5 w-3.5" />
-                  Open PDF
+              {/* PDF Link */}
+              <div className="flex items-center gap-3 p-4 rounded-xl border border-border bg-secondary/30">
+                <ExternalLink className="h-5 w-5 shrink-0 text-muted-foreground" />
+                <div className="flex-1">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Original Judgment</p>
+                  <p className="text-sm font-medium">{caseData.pdf_filename}</p>
+                </div>
+                <Button variant="outline" size="sm" asChild>
+                  <a href={caseData.pdf_url} target="_blank" rel="noopener noreferrer">
+                    View PDF
+                  </a>
                 </Button>
               </div>
             </div>

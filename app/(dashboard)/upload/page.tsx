@@ -13,8 +13,9 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
-import { cn } from "@/lib/utils"
+import { createClient } from "@/lib/supabase/client"
 import { StatusBadge } from "@/components/dashboard/StatusBadge"
+import { cn } from "@/lib/utils"
 
 /* ─── Types ─── */
 interface ComplianceAction {
@@ -123,20 +124,20 @@ function Step1Upload({
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-6">
-      <motion.div
-        animate={shake ? { x: [-8, 8, -8, 8, 0] } : {}}
-        transition={{ duration: 0.4 }}
-        {...rootProps}
-        className={cn(
-          "relative border-2 border-dashed rounded-2xl p-12 text-center cursor-pointer transition-all duration-300 group",
-          isDragActive
-            ? "border-blue-500 bg-blue-500/10 scale-[1.02]"
-            : file
-              ? "border-emerald-500 bg-emerald-500/5"
-              : "border-border hover:border-blue-500/50 hover:bg-blue-500/5"
-        )}
-      >
-        <input {...getInputProps()} />
+      <div {...rootProps}>
+        <motion.div
+          animate={shake ? { x: [-8, 8, -8, 8, 0] } : {}}
+          transition={{ duration: 0.4 }}
+          className={cn(
+            "relative border-2 border-dashed rounded-2xl p-12 text-center cursor-pointer transition-all duration-300 group",
+            isDragActive
+              ? "border-blue-500 bg-blue-500/10 scale-[1.02]"
+              : file
+                ? "border-emerald-500 bg-emerald-500/5"
+                : "border-border hover:border-blue-500/50 hover:bg-blue-500/5"
+          )}
+        >
+          <input {...getInputProps()} />
 
           {/* Animated dashed border overlay */}
           <div className="absolute inset-0 rounded-2xl overflow-hidden pointer-events-none">
@@ -179,6 +180,7 @@ function Step1Upload({
             </div>
           )}
         </motion.div>
+      </div>
 
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-1.5">
@@ -395,7 +397,9 @@ function Step2Processing({ file, onComplete, onError }: { file: File; onComplete
 }
 
 /* ─── STEP 3: Review Extraction ─── */
-function Step3Review({ data, setData, onNext }: { data: ExtractedData; setData: (d: ExtractedData) => void; onNext: () => void }) {
+function Step3Review({ data, setData, file, onNext }: { data: ExtractedData; setData: (d: ExtractedData) => void; file: File; onNext: () => void }) {
+  const [saving, setSaving] = useState(false)
+
   const toggleAction = (id: string) =>
     setData({
       ...data,
@@ -403,6 +407,151 @@ function Step3Review({ data, setData, onNext }: { data: ExtractedData; setData: 
     })
 
   const selectedCount = data.complianceActions.filter(a => a.included).length
+
+  const handleSubmit = async () => {
+    if (saving) return
+    setSaving(true)
+
+    try {
+      const supabase = createClient()
+
+      // Get current user
+      const { data: { user }, error: userError } = await supabase.auth.getUser()
+      if (userError || !user) {
+        throw new Error("You must be logged in to upload cases")
+      }
+
+      // Upload file to storage
+      const fileExt = file.name.split('.').pop()
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`
+      const filePath = `judgments/${fileName}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('judgments')
+        .upload(filePath, file)
+
+      if (uploadError) {
+        throw new Error(`Failed to upload file: ${uploadError.message}`)
+      }
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('judgments')
+        .getPublicUrl(filePath)
+
+      // Get department ID
+      let departmentId = null
+      if (data.department) {
+        const { data: deptData } = await supabase
+          .from('departments')
+          .select('id')
+          .eq('name', data.department)
+          .single()
+
+        if (deptData) {
+          departmentId = deptData.id
+        }
+      }
+
+      // Insert case
+      const { data: caseData, error: caseError } = await supabase
+        .from('cases')
+        .insert({
+          case_number: data.caseNumber,
+          case_title: data.subject,
+          court_name: data.court,
+          judgment_date: data.dateOfJudgment ? new Date(data.dateOfJudgment).toISOString().split('T')[0] : null,
+          uploaded_by: user.id,
+          department_id: departmentId,
+          pdf_url: publicUrl,
+          pdf_filename: file.name,
+          status: 'extracted'
+        })
+        .select()
+        .single()
+
+      if (caseError) {
+        throw new Error(`Failed to save case: ${caseError.message}`)
+      }
+
+      // Insert extraction
+      const { data: extractionData, error: extractionError } = await supabase
+        .from('extractions')
+        .insert({
+          case_id: caseData.id,
+          case_number: data.caseNumber,
+          case_title: data.subject,
+          petitioner: data.petitioners?.join(', '),
+          respondent: data.respondents?.join(', '),
+          court_name: data.court,
+          judge_name: data.judges?.join(', '),
+          date_of_order: data.dateOfJudgment ? new Date(data.dateOfJudgment).toISOString().split('T')[0] : null,
+          key_directions: data.complianceActions?.map(a => a.action),
+          parties_involved: [
+            ...(data.petitioners?.map(p => ({ name: p, role: 'petitioner' })) || []),
+            ...(data.respondents?.map(r => ({ name: r, role: 'respondent' })) || [])
+          ],
+          timelines: data.complianceActions?.map(a => ({
+            event: a.action,
+            date: a.deadlineDate,
+            date_text: a.deadline,
+            is_inferred: false,
+            days_from_order: null
+          })),
+          case_outcome: data.verdict?.toLowerCase(),
+          subject_matter: data.subject,
+          confidence_score: 0.85, // Default confidence
+          raw_extracted_text: data.summary
+        })
+        .select()
+        .single()
+
+      if (extractionError) {
+        throw new Error(`Failed to save extraction: ${extractionError.message}`)
+      }
+
+      // Insert action plan
+      const selectedActions = data.complianceActions.filter(a => a.included)
+      const priorityLevel = selectedActions.some(a => a.priority === 'CRITICAL') ? 'critical' :
+                           selectedActions.some(a => a.priority === 'HIGH') ? 'high' : 'medium'
+
+      const { error: actionPlanError } = await supabase
+        .from('action_plans')
+        .insert({
+          case_id: caseData.id,
+          extraction_id: extractionData.id,
+          action_type: selectedActions.length > 0 ? 'compliance' : 'no_action',
+          priority_level: priorityLevel,
+          summary: data.summary,
+          ai_reasoning: `AI extracted ${selectedActions.length} compliance actions from judgment`,
+          compliance_actions: selectedActions.map(a => ({
+            action: a.action,
+            priority: a.priority.toLowerCase(),
+            responsible_authority: a.department,
+            deadline: a.deadline
+          })),
+          responsible_departments: [...new Set(selectedActions.map(a => a.department))],
+          key_timelines: selectedActions.map(a => ({
+            action: a.action,
+            deadline: a.deadline,
+            priority: a.priority.toLowerCase()
+          }))
+        })
+
+      if (actionPlanError) {
+        throw new Error(`Failed to save action plan: ${actionPlanError.message}`)
+      }
+
+      toast.success("Case submitted successfully!")
+      onNext()
+
+    } catch (error: any) {
+      console.error('Upload error:', error)
+      toast.error(error.message || "Failed to save case. Please try again.")
+    } finally {
+      setSaving(false)
+    }
+  }
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-6">
@@ -586,8 +735,17 @@ function Step3Review({ data, setData, onNext }: { data: ExtractedData; setData: 
         </div>
       </div>
 
-      <Button size="lg" className="w-full h-12 rounded-xl gap-2 shadow-lg shadow-blue-500/20" onClick={onNext}>
-        Confirm & Submit {selectedCount} Actions <ArrowRight className="h-5 w-5" />
+      <Button size="lg" className="w-full h-12 rounded-xl gap-2 shadow-lg shadow-blue-500/20" onClick={handleSubmit} disabled={saving}>
+        {saving ? (
+          <>
+            <Loader2 className="h-5 w-5 animate-spin" />
+            Saving Case...
+          </>
+        ) : (
+          <>
+            Confirm & Submit {selectedCount} Actions <ArrowRight className="h-5 w-5" />
+          </>
+        )}
       </Button>
     </motion.div>
   )
@@ -683,12 +841,13 @@ export default function UploadPage() {
               }}
             />
           )}
-          {step === 2 && extracted && (
+          {step === 2 && extracted && file && (
             <Step3Review
               key="s3"
               data={extracted}
               setData={setExtracted}
-              onNext={() => { toast.success("Case submitted successfully!"); setStep(3) }}
+              file={file}
+              onNext={() => setStep(3)}
             />
           )}
           {step === 3 && (
