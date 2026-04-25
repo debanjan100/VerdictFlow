@@ -58,14 +58,14 @@ function StepIndicator({ current }: { current: number }) {
   return (
     <div className="flex items-center justify-center gap-0 mb-8">
       {STEPS.map((label, i) => {
-        const done   = i < current
+        const done = i < current
         const active = i === current
         return (
           <div key={label} className="flex items-center">
             <div className="flex flex-col items-center gap-1.5">
               <div className={cn(
                 "h-8 w-8 rounded-full border-2 flex items-center justify-center text-xs font-bold transition-all duration-300",
-                done   && "border-emerald-500 bg-emerald-500 text-white",
+                done && "border-emerald-500 bg-emerald-500 text-white",
                 active && "border-blue-500 bg-blue-500/15 text-blue-400",
                 !done && !active && "border-border text-muted-foreground",
               )}>
@@ -119,24 +119,24 @@ function Step1Upload({
     multiple: false,
   })
 
-  const rootProps = getRootProps()
+  const { onDrag: _onDrag, onDragStart: _onDragStart, onDragEnd: _onDragEnd, ...rootProps } = getRootProps()
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-6">
-      <div {...getRootProps()} className="outline-none">
-        <motion.div
-          animate={shake ? { x: [-8, 8, -8, 8, 0] } : {}}
-          transition={{ duration: 0.4 }}
-          className={cn(
-            "relative border-2 border-dashed rounded-2xl p-12 text-center cursor-pointer transition-all duration-300 group",
-            isDragActive
-              ? "border-blue-500 bg-blue-500/10 scale-[1.02]"
-              : file
-                ? "border-emerald-500 bg-emerald-500/5"
-                : "border-border hover:border-blue-500/50 hover:bg-blue-500/5"
-          )}
-        >
-          <input {...getInputProps()} />
+      <motion.div
+        animate={shake ? { x: [-8, 8, -8, 8, 0] } : {}}
+        transition={{ duration: 0.4 }}
+        {...rootProps}
+        className={cn(
+          "relative border-2 border-dashed rounded-2xl p-12 text-center cursor-pointer transition-all duration-300 group",
+          isDragActive
+            ? "border-blue-500 bg-blue-500/10 scale-[1.02]"
+            : file
+              ? "border-emerald-500 bg-emerald-500/5"
+              : "border-border hover:border-blue-500/50 hover:bg-blue-500/5"
+        )}
+      >
+        <input {...getInputProps()} />
 
           {/* Animated dashed border overlay */}
           <div className="absolute inset-0 rounded-2xl overflow-hidden pointer-events-none">
@@ -179,7 +179,6 @@ function Step1Upload({
             </div>
           )}
         </motion.div>
-      </div>
 
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-1.5">
@@ -220,7 +219,7 @@ function Step2Processing({ file, onComplete, onError }: { file: File; onComplete
   const [statusMsg, setStatusMsg] = useState("Initializing connection...")
   const [progress, setProgress] = useState(0)
   const [stage, setStage] = useState<string>("init")
-  
+
   const hasStarted = useRef(false)
 
   useEffect(() => {
@@ -261,7 +260,7 @@ function Step2Processing({ file, onComplete, onError }: { file: File; onComplete
               const dataStr = line.replace("data: ", "").trim()
               try {
                 const data = JSON.parse(dataStr)
-                
+
                 if (data.stage === "error") {
                   throw new Error(data.message)
                 }
@@ -291,7 +290,7 @@ function Step2Processing({ file, onComplete, onError }: { file: File; onComplete
     }
 
     analyzeDoc()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const steps = [
@@ -314,7 +313,7 @@ function Step2Processing({ file, onComplete, onError }: { file: File; onComplete
       {/* Brain animation */}
       <div className="flex flex-col items-center gap-4">
         <div className="relative h-24 w-24">
-          {[0,1,2].map(i => (
+          {[0, 1, 2].map(i => (
             <motion.div
               key={i}
               animate={{ scale: [1, 1.3, 1], opacity: [0.3, 0.6, 0.3] }}
@@ -347,7 +346,7 @@ function Step2Processing({ file, onComplete, onError }: { file: File; onComplete
       {/* Progress Bar */}
       <div className="max-w-xs mx-auto">
         <div className="h-2 w-full bg-secondary rounded-full overflow-hidden">
-          <motion.div 
+          <motion.div
             className="h-full bg-blue-500"
             initial={{ width: 0 }}
             animate={{ width: `${progress}%` }}
@@ -359,9 +358,9 @@ function Step2Processing({ file, onComplete, onError }: { file: File; onComplete
       {/* Step checklist */}
       <div className="max-w-sm mx-auto space-y-3">
         {steps.map((s, i) => {
-          const done   = i < currentIdx
+          const done = i < currentIdx
           const active = i === currentIdx
-          const Icon   = s.icon
+          const Icon = s.icon
           return (
             <motion.div
               key={s.id}
@@ -371,7 +370,7 @@ function Step2Processing({ file, onComplete, onError }: { file: File; onComplete
             >
               <div className={cn(
                 "h-9 w-9 rounded-xl border-2 flex items-center justify-center shrink-0 transition-all",
-                done   && "border-emerald-500 bg-emerald-500/15",
+                done && "border-emerald-500 bg-emerald-500/15",
                 active && "border-blue-500 bg-blue-500/15",
                 !done && !active && "border-border",
               )}>
@@ -398,9 +397,9 @@ function Step2Processing({ file, onComplete, onError }: { file: File; onComplete
 /* ─── STEP 3: Review Extraction ─── */
 function Step3Review({ data, setData, onNext }: { data: ExtractedData; setData: (d: ExtractedData) => void; onNext: () => void }) {
   const toggleAction = (id: string) =>
-    setData({ 
-      ...data, 
-      complianceActions: data.complianceActions.map(a => a.id === id ? { ...a, included: !a.included } : a) 
+    setData({
+      ...data,
+      complianceActions: data.complianceActions.map(a => a.id === id ? { ...a, included: !a.included } : a)
     })
 
   const selectedCount = data.complianceActions.filter(a => a.included).length
@@ -422,13 +421,13 @@ function Step3Review({ data, setData, onNext }: { data: ExtractedData; setData: 
               <h3 className="font-semibold text-sm">Case Details</h3>
               <span className="ml-auto text-xs text-muted-foreground flex items-center gap-1"><Edit2 className="h-3 w-3" />Editable</span>
             </div>
-            
+
             <div className="grid grid-cols-2 gap-3">
               {[
                 { label: "Case Number", value: data.caseNumber, key: "caseNumber" },
-                { label: "Court",       value: data.court,      key: "court"      },
-                { label: "Department",  value: data.department, key: "department" },
-                { label: "Date",        value: data.dateOfJudgment, key: "dateOfJudgment" },
+                { label: "Court", value: data.court, key: "court" },
+                { label: "Department", value: data.department, key: "department" },
+                { label: "Date", value: data.dateOfJudgment, key: "dateOfJudgment" },
               ].map(({ label, value, key }) => (
                 <div key={key} className="space-y-1">
                   <Label className="text-xs text-muted-foreground">{label}</Label>
@@ -440,7 +439,7 @@ function Step3Review({ data, setData, onNext }: { data: ExtractedData; setData: 
                 </div>
               ))}
             </div>
-            
+
             <div className="space-y-1">
               <Label className="text-xs text-muted-foreground">Subject</Label>
               <Input
@@ -460,7 +459,7 @@ function Step3Review({ data, setData, onNext }: { data: ExtractedData; setData: 
               </div>
               <span className="text-xs text-muted-foreground">Toggle to include</span>
             </div>
-            
+
             <div className="space-y-3">
               {data.complianceActions.map((a) => (
                 <div
@@ -471,7 +470,7 @@ function Step3Review({ data, setData, onNext }: { data: ExtractedData; setData: 
                   )}
                 >
                   <div className="flex items-start gap-3">
-                    <div 
+                    <div
                       onClick={() => toggleAction(a.id)}
                       className={cn(
                         "h-5 w-5 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 transition-all cursor-pointer",
@@ -502,8 +501,8 @@ function Step3Review({ data, setData, onNext }: { data: ExtractedData; setData: 
                       <div className="flex items-center gap-3 mt-2 text-xs">
                         <div className="flex items-center gap-1.5 text-muted-foreground">
                           <Building2 className="h-3.5 w-3.5" />
-                          <input 
-                            value={a.department} 
+                          <input
+                            value={a.department}
                             onChange={(e) => {
                               const newActions = data.complianceActions.map(act => act.id === a.id ? { ...act, department: e.target.value } : act)
                               setData({ ...data, complianceActions: newActions })
@@ -513,8 +512,8 @@ function Step3Review({ data, setData, onNext }: { data: ExtractedData; setData: 
                         </div>
                         <div className="flex items-center gap-1.5 text-amber-400">
                           <Calendar className="h-3.5 w-3.5" />
-                          <input 
-                            value={a.deadline} 
+                          <input
+                            value={a.deadline}
                             onChange={(e) => {
                               const newActions = data.complianceActions.map(act => act.id === a.id ? { ...act, deadline: e.target.value } : act)
                               setData({ ...data, complianceActions: newActions })
@@ -535,13 +534,13 @@ function Step3Review({ data, setData, onNext }: { data: ExtractedData; setData: 
         <div className="space-y-6">
           <div className="rounded-2xl border border-border bg-card p-5 space-y-4">
             <h3 className="font-semibold text-sm border-b border-border pb-2">Analysis Overview</h3>
-            
+
             <div>
               <p className="text-xs text-muted-foreground mb-1">Risk Score</p>
               <div className="flex items-center gap-2">
                 <div className="h-2 flex-1 bg-secondary rounded-full overflow-hidden">
-                  <div 
-                    className={cn("h-full", data.riskScore > 7 ? "bg-red-500" : data.riskScore > 4 ? "bg-amber-500" : "bg-emerald-500")} 
+                  <div
+                    className={cn("h-full", data.riskScore > 7 ? "bg-red-500" : data.riskScore > 4 ? "bg-amber-500" : "bg-emerald-500")}
                     style={{ width: `${(data.riskScore / 10) * 100}%` }}
                   />
                 </div>
@@ -614,7 +613,7 @@ function Step4Success({ onReset }: { onReset: () => void }) {
             transition={{ duration: 1.2, delay: i * 0.1 }}
             className={cn(
               "absolute h-3 w-3 rounded-full",
-              ["bg-blue-400","bg-emerald-400","bg-amber-400","bg-rose-400","bg-purple-400","bg-cyan-400","bg-pink-400","bg-yellow-400"][i]
+              ["bg-blue-400", "bg-emerald-400", "bg-amber-400", "bg-rose-400", "bg-purple-400", "bg-cyan-400", "bg-pink-400", "bg-yellow-400"][i]
             )}
           />
         ))}
@@ -652,8 +651,8 @@ function Step4Success({ onReset }: { onReset: () => void }) {
 
 /* ─── Main Page ─── */
 export default function UploadPage() {
-  const [step, setStep]   = useState(0)
-  const [file, setFile]   = useState<File | null>(null)
+  const [step, setStep] = useState(0)
+  const [file, setFile] = useState<File | null>(null)
   const [extracted, setExtracted] = useState<ExtractedData | null>(null)
 
   const reset = () => { setStep(0); setFile(null); setExtracted(null) }
@@ -677,7 +676,7 @@ export default function UploadPage() {
               key="s2"
               file={file}
               onComplete={data => { setExtracted(data); setStep(2) }}
-              onError={(msg) => { 
+              onError={(msg) => {
                 toast.error(msg)
                 setStep(0)
                 setFile(null)

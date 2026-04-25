@@ -102,7 +102,7 @@ export async function POST(req: NextRequest) {
         let fullText = ""
         let isGenerating = false
         
-        for await (const chunk of resultStream) {
+        for await (const chunk of resultStream.stream) {
           if (!isGenerating) {
             sendEvent({ stage: "generating", message: "Generating structured action plan...", progress: 75 })
             isGenerating = true
