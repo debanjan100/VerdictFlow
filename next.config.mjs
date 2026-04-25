@@ -10,8 +10,16 @@ const nextConfig = {
     ],
   },
   experimental: {
-    serverComponentsExternalPackages: ['pdf-parse'],
-  }
+    serverExternalPackages: ['pdf-parse'],
+  },
+  // Suppress specific warnings from pdfjs-dist in edge runtime
+  webpack: (config) => {
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      canvas: false,
+    }
+    return config
+  },
 };
 
 export default nextConfig;

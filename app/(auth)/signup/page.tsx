@@ -1,16 +1,16 @@
 "use client"
 
 import { useState } from "react"
-import { Scale, Mail, Lock, AlertCircle } from "lucide-react"
+import { Scale, Mail, Lock, User, Briefcase, AlertCircle, CheckCircle2 } from "lucide-react"
 import { createBrowserClient } from "@supabase/ssr"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { motion, AnimatePresence } from "framer-motion"
 
-export default function LoginPage() {
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
+export default function SignupPage() {
+  const [formData, setFormData] = useState({ name: "", email: "", role: "", password: "", confirmPassword: "" })
   const [error, setError] = useState("")
+  const [success, setSuccess] = useState("")
   const [loading, setLoading] = useState(false)
   const router = useRouter()
 
@@ -19,20 +19,29 @@ export default function LoginPage() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   )
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault()
-    setError("")
-    if (!email || !password) return setError("Please enter your email and password.")
+    setError(""); setSuccess("")
+    
+    if (!formData.name || !formData.email || !formData.role || !formData.password || !formData.confirmPassword) {
+      return setError("Please complete all fields.")
+    }
+    if (formData.password.length < 8) return setError("Password must be at least 8 characters.")
+    if (formData.password !== formData.confirmPassword) return setError("Passwords do not match.")
     
     setLoading(true)
-    const { error: authError } = await supabase.auth.signInWithPassword({ email, password })
+    const { error: authError } = await supabase.auth.signUp({
+      email: formData.email,
+      password: formData.password,
+      options: { data: { full_name: formData.name, role: formData.role } }
+    })
     
     if (authError) {
       setError(authError.message)
-      setLoading(false)
     } else {
-      router.push('/dashboard')
+      setSuccess("Account created! Check your email to verify.")
     }
+    setLoading(false)
   }
 
   const handleGoogleAuth = async () => {
@@ -51,8 +60,8 @@ export default function LoginPage() {
             <Scale className="text-white w-6 h-6" />
           </div>
         </Link>
-        <h1 className="font-playfair text-3xl font-bold mb-2">Welcome Back</h1>
-        <p className="text-[var(--muted)] text-center text-sm">Sign in to your VerdictFlow account</p>
+        <h1 className="font-playfair text-3xl font-bold mb-2">Create Account</h1>
+        <p className="text-[var(--muted)] text-center text-sm">Join VerdictFlow — AI case management</p>
       </div>
 
       <AnimatePresence>
@@ -62,15 +71,45 @@ export default function LoginPage() {
             <p>{error}</p>
           </motion.div>
         )}
+        {success && (
+          <motion.div initial={{opacity:0, height:0}} animate={{opacity:1, height:'auto'}} exit={{opacity:0, height:0}} className="mb-6 bg-[var(--success)]/10 border border-[var(--success)]/30 text-[var(--success)] px-4 py-3 rounded-xl flex items-start text-sm">
+            <CheckCircle2 className="w-4 h-4 mt-0.5 mr-2 shrink-0" />
+            <p>{success}</p>
+          </motion.div>
+        )}
       </AnimatePresence>
 
-      <form onSubmit={handleLogin} className="space-y-4">
+      <form onSubmit={handleSignup} className="space-y-4">
+        <div className="relative">
+          <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--muted)]" />
+          <input 
+            type="text" required placeholder="Full Name"
+            className="w-full bg-[var(--surface2)] border border-[var(--border)] rounded-xl py-3 pl-10 pr-4 text-white placeholder-[var(--muted)] focus:outline-none focus:border-[var(--blue)] focus:ring-1 focus:ring-[var(--blue)] transition-all"
+            value={formData.name} onChange={e=>setFormData({...formData, name: e.target.value})}
+          />
+        </div>
+
+        <div className="relative">
+          <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--muted)]" />
+          <select 
+            required
+            className="w-full bg-[var(--surface2)] border border-[var(--border)] rounded-xl py-3 pl-10 pr-4 text-white focus:outline-none focus:border-[var(--blue)] focus:ring-1 focus:ring-[var(--blue)] transition-all appearance-none"
+            value={formData.role} onChange={e=>setFormData({...formData, role: e.target.value})}
+          >
+            <option value="" disabled className="text-[var(--muted)]">Select Role</option>
+            <option value="reviewer">Case Reviewer</option>
+            <option value="department_head">Department Head</option>
+            <option value="viewer">Viewer / Analyst</option>
+            <option value="admin">System Administrator</option>
+          </select>
+        </div>
+
         <div className="relative">
           <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--muted)]" />
           <input 
             type="email" required placeholder="you@department.gov.in"
             className="w-full bg-[var(--surface2)] border border-[var(--border)] rounded-xl py-3 pl-10 pr-4 text-white placeholder-[var(--muted)] focus:outline-none focus:border-[var(--blue)] focus:ring-1 focus:ring-[var(--blue)] transition-all"
-            value={email} onChange={e=>setEmail(e.target.value)}
+            value={formData.email} onChange={e=>setFormData({...formData, email: e.target.value})}
           />
         </div>
 
@@ -79,7 +118,16 @@ export default function LoginPage() {
           <input 
             type="password" required placeholder="Password"
             className="w-full bg-[var(--surface2)] border border-[var(--border)] rounded-xl py-3 pl-10 pr-4 text-white placeholder-[var(--muted)] focus:outline-none focus:border-[var(--blue)] focus:ring-1 focus:ring-[var(--blue)] transition-all"
-            value={password} onChange={e=>setPassword(e.target.value)}
+            value={formData.password} onChange={e=>setFormData({...formData, password: e.target.value})}
+          />
+        </div>
+
+        <div className="relative">
+          <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--muted)]" />
+          <input 
+            type="password" required placeholder="Confirm Password"
+            className="w-full bg-[var(--surface2)] border border-[var(--border)] rounded-xl py-3 pl-10 pr-4 text-white placeholder-[var(--muted)] focus:outline-none focus:border-[var(--blue)] focus:ring-1 focus:ring-[var(--blue)] transition-all"
+            value={formData.confirmPassword} onChange={e=>setFormData({...formData, confirmPassword: e.target.value})}
           />
         </div>
 
@@ -87,7 +135,7 @@ export default function LoginPage() {
           type="submit" disabled={loading}
           className="w-full py-3.5 mt-2 bg-gradient-to-r from-[var(--blue)] to-blue-400 hover:from-blue-600 hover:to-blue-500 text-white font-semibold rounded-xl transition-all transform hover:-translate-y-0.5 shadow-lg flex justify-center items-center"
         >
-          {loading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : 'Sign In to VerdictFlow'}
+          {loading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : 'Create Account'}
         </button>
       </form>
 
@@ -111,9 +159,9 @@ export default function LoginPage() {
       </button>
 
       <p className="mt-8 text-center text-sm text-[var(--muted)]">
-        Don't have an account?{' '}
-        <Link href="/signup" className="text-[var(--gold)] hover:text-white font-medium transition-colors">
-          Sign up free
+        Already have an account?{' '}
+        <Link href="/login" className="text-[var(--gold)] hover:text-white font-medium transition-colors">
+          Sign in
         </Link>
       </p>
 
