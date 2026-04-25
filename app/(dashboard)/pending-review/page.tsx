@@ -193,8 +193,7 @@ export default function PendingReviewPage() {
     else
       setSelected(new Set(filtered.map(c => c.id)))
   }
-
-  const departments = [...new Set(queue.map(c => c.department))]
+  const departments = Array.from(new Set(queue.map(c => c.department)))
 
   return (
     <div className="space-y-6 pb-32">
