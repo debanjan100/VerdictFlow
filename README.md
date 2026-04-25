@@ -1,89 +1,201 @@
-# VerdictFlow
+# ⚖️ VerdictFlow
 
-VerdictFlow is a production-ready, AI-powered Court Judgment Analysis and Action Plan Management System designed for government use in India. It transforms dense, unstructured court judgment PDFs into verified, actionable government compliance plans using a 4-stage pipeline powered by Google Gemini 1.5 Pro.
+### 🚀 AI-Powered Court Judgment Analysis & Compliance System
 
-## Features
+**VerdictFlow** is a production-ready, AI-powered platform designed for government use in India 🇮🇳.
+It transforms complex, unstructured court judgment PDFs into **verified, structured, and actionable compliance plans** using a powerful **4-stage AI pipeline** powered by Google Gemini 1.5 Pro.
 
-- **PDF Upload & AI Extraction**: Instantly parse complex court rulings.
-- **AI Action Plan Generation**: Automatically translate judgments into step-by-step compliance, appeal, and execution plans.
-- **Case Lifecycle Tracking**: Monitor the status of judgments and track critical timelines and deadlines.
-- **Human Verification**: Built-in workflows for legal professionals to review and approve AI-generated insights.
-- **Department Breakdown**: Visualize compliance action assignments across different government departments.
-- **Smooth Animations**: A modern UI with smooth page transitions and Framer Motion animations.
+---
 
-## Tech Stack
+## ✨ Key Features
 
-- **Framework**: Next.js 14 (App Router)
-- **Language**: TypeScript
-- **Styling**: Tailwind CSS & shadcn/ui
-- **Database**: Supabase (PostgreSQL + Storage)
-- **AI Model**: Google Gemini API (`@google/genai`)
-- **Animations**: Framer Motion
+### 📄 Smart PDF Intelligence
 
-## Prerequisites
+* Upload court judgments and instantly extract structured insights
+* Handles complex legal language with high accuracy
 
-- Node.js 18+ and npm
-- A Supabase Project
-- A Google Gemini API Key
+### 🤖 AI Action Plan Generator
 
-## Getting Started
+* Converts judgments into:
 
-### 1. Database Setup
+  * ✅ Compliance steps
+  * ⚖️ Appeal strategies
+  * 📌 Execution plans
 
-You need to initialize the database tables in your Supabase project.
-1. Open your Supabase Dashboard and go to the SQL Editor.
-2. Copy the contents of `supabase/schema.sql`.
-3. Paste and run the SQL script to create all necessary tables, policies, and storage buckets.
+### 📊 Case Lifecycle Tracking
 
-### 2. Environment Variables
+* Track:
 
-Create a `.env.local` file in the root directory (you can copy `.env.local.example`):
+  * 📅 Deadlines
+  * 🔄 Status updates
+  * ⏳ Critical timelines
+
+### 👨‍⚖️ Human-in-the-Loop Verification
+
+* Legal professionals can:
+
+  * Review AI outputs
+  * Approve or refine decisions
+
+### 🏛️ Department-Level Insights
+
+* Automatically distributes tasks across departments
+* Clear visualization of responsibilities
+
+### 🎨 Premium UI/UX
+
+* Smooth transitions with Framer Motion
+* Clean, modern government-grade interface
+
+---
+
+## 🧠 How It Works
+
+1. 📥 **Upload PDF**
+2. 🔍 **AI Extraction (Gemini)**
+3. 🧾 **Structured Insight Generation**
+4. 📋 **Action Plan + Verification**
+
+---
+
+## 🛠️ Tech Stack
+
+| Category       | Technology                          |
+| -------------- | ----------------------------------- |
+| ⚙️ Framework   | Next.js 14 (App Router)             |
+| 💻 Language    | TypeScript                          |
+| 🎨 Styling     | Tailwind CSS + shadcn/ui            |
+| 🗄️ Database   | Supabase (PostgreSQL + Storage)     |
+| 🤖 AI Model    | Google Gemini API (`@google/genai`) |
+| 🎞️ Animations | Framer Motion                       |
+
+---
+
+## ⚡ Prerequisites
+
+Before running the project, ensure you have:
+
+* 🟢 Node.js 18+
+* 🗄️ Supabase Project
+* 🔑 Google Gemini API Key
+
+---
+
+## 🚀 Getting Started
+
+### 1️⃣ Database Setup
+
+* Open your Supabase Dashboard
+* Go to **SQL Editor**
+* Copy the contents of `supabase/schema.sql`
+* Paste and run the script
+
+---
+
+### 2️⃣ Environment Variables
+
+Create a `.env.local` file:
 
 ```bash
 cp .env.local.example .env.local
 ```
 
-Fill in your actual API keys:
+Add your keys:
 
 ```env
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-GEMINI_API_KEY=your_gemini_api_key
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url  
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key  
+GEMINI_API_KEY=your_gemini_api_key  
 ```
 
-### 3. Install Dependencies
+---
 
-Install the required npm packages:
+### 3️⃣ Install Dependencies
 
 ```bash
 npm install
 ```
 
-### 4. Run the Development Server
+---
 
-Start the local development server:
+### 4️⃣ Run the App
 
 ```bash
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result. You will be automatically redirected to the login page.
+🌐 Open: http://localhost:3000
 
-## Project Structure
+---
 
-- `app/(auth)`: Contains the login page and authentication layout.
-- `app/(dashboard)`: Contains the main authenticated dashboard layout, case overview, and PDF upload functionalities.
-- `app/api`: Next.js Route Handlers for the Gemini extraction and action plan generation APIs.
-- `components/ui`: Reusable UI components from `shadcn/ui`.
-- `lib/gemini`: Gemini client initialization and prompt templates.
-- `lib/supabase`: Supabase clients for browser, server components, and middleware.
-- `supabase/schema.sql`: The database schema definition.
+## 📁 Project Structure
 
-## Design
+```
+📦 VerdictFlow  
+├── app/  
+│   ├── (auth)/           🔐 Authentication pages  
+│   ├── (dashboard)/      📊 Main dashboard & features  
+│   ├── api/              ⚡ Backend API routes  
+│  
+├── components/  
+│   └── ui/               🎨 Reusable UI components  
+│  
+├── lib/  
+│   ├── gemini/           🤖 AI integration & prompts  
+│   ├── supabase/         🗄️ DB clients & config  
+│  
+├── supabase/  
+│   └── schema.sql        📜 Database schema  
+```
 
-VerdictFlow features a modern, premium design with a "Government-grade legal intelligence" aesthetic. The UI uses professional blue primary colors combined with subtle dark-mode-ready backgrounds and crisp micro-animations (powered by Framer Motion).
+---
 
-## Connect With Us
+## 🎯 Design Philosophy
 
-- **GitHub**: [debanjan100](https://github.com/debanjan100)
-- **LinkedIn**: [Debanjan Ghorui](https://www.linkedin.com/in/debanjanghorui5567/)
+* 🟦 Government-grade aesthetic
+* 🌙 Dark-mode ready
+* 🎯 Clean typography & spacing
+* ⚡ Micro-interactions for better UX
+
+---
+
+## 🌐 Connect With Me
+
+* 💻 GitHub: https://github.com/debanjan100
+* 🔗 LinkedIn: https://www.linkedin.com/in/debanjanghorui5567/
+
+---
+
+## ⭐ Future Improvements
+
+* 📌 Role-based access control
+* 📊 Advanced analytics dashboard
+* 🌍 Multi-language legal support
+* 🔔 Smart notifications & alerts
+
+---
+
+## 📌 Why VerdictFlow?
+
+* ⚡ Saves hours of manual legal analysis
+* 🎯 Improves decision accuracy
+* 🏛️ Built for real government workflows
+* 🤖 Combines AI + Human verification for reliability
+
+---
+
+## 🧩 License
+
+This project is open-source and available under the **MIT License**.
+
+---
+
+## ⭐ Support
+
+If you found this project useful:
+
+* ⭐ Star the repo
+* 🍴 Fork it
+* 🤝 Contribute
+
+---
