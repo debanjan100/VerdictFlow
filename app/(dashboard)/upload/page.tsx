@@ -119,12 +119,18 @@ function Step1Upload({
     multiple: false,
   })
 
+  const rootProps = getRootProps()
+
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-6">
       <motion.div
+        {...rootProps}
+        onDragEnter={rootProps.onDragEnter as any}
+        onDragOver={rootProps.onDragOver as any}
+        onDragLeave={rootProps.onDragLeave as any}
+        onDrop={rootProps.onDrop as any}
         animate={shake ? { x: [-8, 8, -8, 8, 0] } : {}}
         transition={{ duration: 0.4 }}
-        {...getRootProps()}
         className={cn(
           "relative border-2 border-dashed rounded-2xl p-12 text-center cursor-pointer transition-all duration-300 group",
           isDragActive

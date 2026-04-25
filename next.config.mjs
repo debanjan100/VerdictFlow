@@ -9,9 +9,7 @@ const nextConfig = {
       },
     ],
   },
-  experimental: {
-    serverExternalPackages: ['pdf-parse'],
-  },
+
   // Suppress specific warnings from pdfjs-dist in edge runtime
   webpack: (config) => {
     config.resolve.alias = {
