@@ -123,66 +123,63 @@ function Step1Upload({
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-6">
-      <motion.div
-        {...rootProps}
-        onDragEnter={rootProps.onDragEnter as any}
-        onDragOver={rootProps.onDragOver as any}
-        onDragLeave={rootProps.onDragLeave as any}
-        onDrop={rootProps.onDrop as any}
-        animate={shake ? { x: [-8, 8, -8, 8, 0] } : {}}
-        transition={{ duration: 0.4 }}
-        className={cn(
-          "relative border-2 border-dashed rounded-2xl p-12 text-center cursor-pointer transition-all duration-300 group",
-          isDragActive
-            ? "border-blue-500 bg-blue-500/10 scale-[1.02]"
-            : file
-              ? "border-emerald-500 bg-emerald-500/5"
-              : "border-border hover:border-blue-500/50 hover:bg-blue-500/5"
-        )}
-      >
-        <input {...getInputProps()} />
+      <div {...getRootProps()} className="outline-none">
+        <motion.div
+          animate={shake ? { x: [-8, 8, -8, 8, 0] } : {}}
+          transition={{ duration: 0.4 }}
+          className={cn(
+            "relative border-2 border-dashed rounded-2xl p-12 text-center cursor-pointer transition-all duration-300 group",
+            isDragActive
+              ? "border-blue-500 bg-blue-500/10 scale-[1.02]"
+              : file
+                ? "border-emerald-500 bg-emerald-500/5"
+                : "border-border hover:border-blue-500/50 hover:bg-blue-500/5"
+          )}
+        >
+          <input {...getInputProps()} />
 
-        {/* Animated dashed border overlay */}
-        <div className="absolute inset-0 rounded-2xl overflow-hidden pointer-events-none">
-          <svg className="absolute inset-0 w-full h-full" preserveAspectRatio="none">
-            <rect
-              x="1" y="1" width="calc(100% - 2)" height="calc(100% - 2)"
-              rx="15" fill="none" stroke={isDragActive ? "#3b82f6" : "transparent"}
-              strokeWidth="2" strokeDasharray="8 4"
-              style={{ animation: isDragActive ? "dash-rotate 1s linear infinite" : "none" }}
-            />
-          </svg>
-        </div>
+          {/* Animated dashed border overlay */}
+          <div className="absolute inset-0 rounded-2xl overflow-hidden pointer-events-none">
+            <svg className="absolute inset-0 w-full h-full" preserveAspectRatio="none">
+              <rect
+                x="1" y="1" width="calc(100% - 2)" height="calc(100% - 2)"
+                rx="15" fill="none" stroke={isDragActive ? "#3b82f6" : "transparent"}
+                strokeWidth="2" strokeDasharray="8 4"
+                style={{ animation: isDragActive ? "dash-rotate 1s linear infinite" : "none" }}
+              />
+            </svg>
+          </div>
 
-        <div className={cn(
-          "h-16 w-16 rounded-2xl flex items-center justify-center mx-auto mb-4 transition-all duration-300",
-          file ? "bg-emerald-500/15" : "bg-blue-500/10 group-hover:bg-blue-500/15"
-        )}>
-          {file
-            ? <CheckCircle2 className="h-8 w-8 text-emerald-400" />
-            : <UploadCloud className={cn("h-8 w-8 transition-transform duration-300", isDragActive ? "scale-125 text-blue-400" : "text-blue-400/70 group-hover:scale-110")} />}
-        </div>
+          <div className={cn(
+            "h-16 w-16 rounded-2xl flex items-center justify-center mx-auto mb-4 transition-all duration-300",
+            file ? "bg-emerald-500/15" : "bg-blue-500/10 group-hover:bg-blue-500/15"
+          )}>
+            {file
+              ? <CheckCircle2 className="h-8 w-8 text-emerald-400" />
+              : <UploadCloud className={cn("h-8 w-8 transition-transform duration-300", isDragActive ? "scale-125 text-blue-400" : "text-blue-400/70 group-hover:scale-110")} />}
+          </div>
 
-        {file ? (
-          <div>
-            <p className="text-lg font-semibold text-emerald-400 mb-1">File ready</p>
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-sm">
-              <FileText className="h-4 w-4 text-emerald-400 shrink-0" />
-              <span className="font-medium truncate max-w-[200px]">{file.name}</span>
-              <span className="text-muted-foreground text-xs shrink-0">{(file.size / 1024 / 1024).toFixed(2)} MB</span>
+          {file ? (
+            <div>
+              <p className="text-lg font-semibold text-emerald-400 mb-1">File ready</p>
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-sm">
+                <FileText className="h-4 w-4 text-emerald-400 shrink-0" />
+                <span className="font-medium truncate max-w-[200px]">{file.name}</span>
+                <span className="text-muted-foreground text-xs shrink-0">{(file.size / 1024 / 1024).toFixed(2)} MB</span>
+              </div>
+              <p className="text-xs text-muted-foreground mt-3">Click or drag to replace</p>
             </div>
-            <p className="text-xs text-muted-foreground mt-3">Click or drag to replace</p>
-          </div>
-        ) : (
-          <div>
-            <p className="text-lg font-semibold mb-1">
-              {isDragActive ? "Drop it here!" : "Drag & drop your PDF"}
-            </p>
-            <p className="text-sm text-muted-foreground">or click to browse files</p>
-            <p className="text-xs text-muted-foreground/60 mt-2">PDF only · Max 50 MB</p>
-          </div>
-        )}
-      </motion.div>
+          ) : (
+            <div>
+              <p className="text-lg font-semibold mb-1">
+                {isDragActive ? "Drop it here!" : "Drag & drop your PDF"}
+              </p>
+              <p className="text-sm text-muted-foreground">or click to browse files</p>
+              <p className="text-xs text-muted-foreground/60 mt-2">PDF only · Max 50 MB</p>
+            </div>
+          )}
+        </motion.div>
+      </div>
 
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-1.5">
