@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'; 
-import { GoogleGenAI } from '@google/genai'; 
+import { GoogleGenerativeAI } from '@google/generative-ai'; 
  
 export const maxDuration = 60; 
 export const dynamic = 'force-dynamic'; 
@@ -67,29 +67,22 @@ export async function POST(req: NextRequest) {
      const arrayBuffer = await file.arrayBuffer(); 
      const base64Data = Buffer.from(arrayBuffer).toString('base64'); 
  
-     const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! }); 
+     const ai = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+     const model = ai.getGenerativeModel({ model: 'gemini-1.5-pro' });
  
      const response = await withRetry(async () => {
-       return await ai.models.generateContent({ 
-         model: 'gemini-1.5-pro', // Upgraded to Pro for better accuracy
-         contents: [ 
-           { 
-             role: 'user', 
-             parts: [ 
-               { 
-                 inlineData: { 
-                   mimeType: 'application/pdf', 
-                   data: base64Data, 
-                 }, 
-               }, 
-               { text: ANALYSIS_PROMPT }, 
-             ], 
-           }, 
-         ], 
-       });
-     }); 
- 
-     const rawText = response.candidates?.[0]?.content?.parts?.[0]?.text ?? ''; 
+       return await model.generateContent([ 
+         {
+           inlineData: {
+             mimeType: 'application/pdf',
+             data: base64Data,
+           },
+         },
+         ANALYSIS_PROMPT,
+       ]);
+     });
+     
+     const rawText = response.response.text(); 
  
      if (!rawText) { 
        throw new Error('Gemini returned an empty response'); 
