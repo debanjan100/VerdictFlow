@@ -15,41 +15,32 @@ import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
 import { createClient } from "@/lib/supabase/client"
 import { StatusBadge } from "@/components/dashboard/StatusBadge"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { cn } from "@/lib/utils"
 
 /* ─── Types ─── */
 interface ComplianceAction {
-  id: string
-  directionNumber: string
-  department: string
+  id?: string
   action: string
-  deadline: string
-  deadlineDate: string | null
-  priority: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW"
+  responsibleDepartment: string
+  deadline: string | null
+  priority: string
   category: string
   included?: boolean // UI state
 }
 
 interface ExtractedData {
-  caseNumber: string
-  court: string
-  department: string
-  dateOfJudgment: string
-  dateOfFiling: string | null
-  judges: string[]
-  petitioners: string[]
-  respondents: string[]
-  caseType: string
-  subject: string
+  caseTitle: string
+  caseNumber: string | null
+  courtName: string
+  judgmentDate: string | null
+  bench: string | null
   summary: string
-  verdict: string
-  priority: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW"
+  keyDirectives: string[]
   complianceActions: ComplianceAction[]
   penalties: string | null
   nextHearingDate: string | null
-  keyLegalSections: string[]
-  estimatedComplianceDays: number
-  riskScore: number
+  tags: string[]
 }
 
 const STEPS = ["Upload", "AI Processing", "Review Extraction", "Confirm & Submit"]
@@ -91,11 +82,12 @@ function StepIndicator({ current }: { current: number }) {
 
 /* ─── STEP 1: Upload ─── */
 function Step1Upload({
-  onNext, file, setFile,
+  onNext, file, setFile, isAnalyzing
 }: {
   onNext: () => void
   file: File | null
   setFile: (f: File | null) => void
+  isAnalyzing: boolean
 }) {
   const [shake, setShake] = useState(false)
 
@@ -118,6 +110,7 @@ function Step1Upload({
     accept: { "application/pdf": [".pdf"] },
     maxSize: 50 * 1024 * 1024,
     multiple: false,
+    disabled: isAnalyzing
   })
 
   const { onDrag: _onDrag, onDragStart: _onDragStart, onDragEnd: _onDragEnd, ...rootProps } = getRootProps()
@@ -134,7 +127,8 @@ function Step1Upload({
               ? "border-blue-500 bg-blue-500/10 scale-[1.02]"
               : file
                 ? "border-emerald-500 bg-emerald-500/5"
-                : "border-border hover:border-blue-500/50 hover:bg-blue-500/5"
+                : "border-border hover:border-blue-500/50 hover:bg-blue-500/5",
+            isAnalyzing && "opacity-50 cursor-not-allowed"
           )}
         >
           <input {...getInputProps()} />
@@ -185,11 +179,11 @@ function Step1Upload({
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-1.5">
           <Label htmlFor="caseNum" className="text-xs">Case Number (Optional)</Label>
-          <Input id="caseNum" placeholder="e.g. WP(C) 1234/2024" className="rounded-xl bg-secondary/50" />
+          <Input id="caseNum" placeholder="e.g. WP(C) 1234/2024" className="rounded-xl bg-secondary/50" disabled={isAnalyzing} />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="dept" className="text-xs">Department (Optional)</Label>
-          <select id="dept" className="flex h-9 w-full rounded-xl border border-input bg-secondary/50 px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
+          <select id="dept" className="flex h-9 w-full rounded-xl border border-input bg-secondary/50 px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" disabled={isAnalyzing}>
             <option value="">Auto-detect</option>
             <option value="revenue">Revenue</option>
             <option value="pwd">PWD</option>
@@ -202,10 +196,19 @@ function Step1Upload({
       <Button
         size="lg"
         className="w-full h-12 rounded-xl text-base shadow-lg shadow-blue-500/20 gap-2"
-        disabled={!file}
+        disabled={!file || isAnalyzing}
         onClick={onNext}
       >
-        Start AI Analysis <ArrowRight className="h-5 w-5" />
+        {isAnalyzing ? (
+          <>
+            <Loader2 className="h-5 w-5 animate-spin" />
+            Analyzing...
+          </>
+        ) : (
+          <>
+            Start AI Analysis <ArrowRight className="h-5 w-5" />
+          </>
+        )}
       </Button>
 
       <div className="flex items-start gap-3 p-4 rounded-xl bg-secondary/40 border border-border text-xs text-muted-foreground">
@@ -439,107 +442,21 @@ function Step3Review({ data, setData, file, onNext }: { data: ExtractedData; set
         .from('judgments')
         .getPublicUrl(filePath)
 
-      // Get department ID
-      let departmentId = null
-      if (data.department) {
-        const { data: deptData } = await supabase
-          .from('departments')
-          .select('id')
-          .eq('name', data.department)
-          .single()
-
-        if (deptData) {
-          departmentId = deptData.id
-        }
-      }
-
-      // Insert case
-      const { data: caseData, error: caseError } = await supabase
-        .from('cases')
-        .insert({
-          case_number: data.caseNumber,
-          case_title: data.subject,
-          court_name: data.court,
-          judgment_date: data.dateOfJudgment ? new Date(data.dateOfJudgment).toISOString().split('T')[0] : null,
-          uploaded_by: user.id,
-          department_id: departmentId,
-          pdf_url: publicUrl,
-          pdf_filename: file.name,
-          status: 'extracted'
+      const response = await fetch('/api/save-case', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          analysisData: data,
+          caseNumber: data.caseNumber,
+          department: data.complianceActions?.[0]?.responsibleDepartment || "Unassigned",
+          pdfUrl: publicUrl,
+          pdfFilename: file.name
         })
-        .select()
-        .single()
+      });
 
-      if (caseError) {
-        throw new Error(`Failed to save case: ${caseError.message}`)
-      }
-
-      // Insert extraction
-      const { data: extractionData, error: extractionError } = await supabase
-        .from('extractions')
-        .insert({
-          case_id: caseData.id,
-          case_number: data.caseNumber,
-          case_title: data.subject,
-          petitioner: data.petitioners?.join(', '),
-          respondent: data.respondents?.join(', '),
-          court_name: data.court,
-          judge_name: data.judges?.join(', '),
-          date_of_order: data.dateOfJudgment ? new Date(data.dateOfJudgment).toISOString().split('T')[0] : null,
-          key_directions: data.complianceActions?.map(a => a.action),
-          parties_involved: [
-            ...(data.petitioners?.map(p => ({ name: p, role: 'petitioner' })) || []),
-            ...(data.respondents?.map(r => ({ name: r, role: 'respondent' })) || [])
-          ],
-          timelines: data.complianceActions?.map(a => ({
-            event: a.action,
-            date: a.deadlineDate,
-            date_text: a.deadline,
-            is_inferred: false,
-            days_from_order: null
-          })),
-          case_outcome: data.verdict?.toLowerCase(),
-          subject_matter: data.subject,
-          confidence_score: 0.85, // Default confidence
-          raw_extracted_text: data.summary
-        })
-        .select()
-        .single()
-
-      if (extractionError) {
-        throw new Error(`Failed to save extraction: ${extractionError.message}`)
-      }
-
-      // Insert action plan
-      const selectedActions = data.complianceActions.filter(a => a.included)
-      const priorityLevel = selectedActions.some(a => a.priority === 'CRITICAL') ? 'critical' :
-                           selectedActions.some(a => a.priority === 'HIGH') ? 'high' : 'medium'
-
-      const { error: actionPlanError } = await supabase
-        .from('action_plans')
-        .insert({
-          case_id: caseData.id,
-          extraction_id: extractionData.id,
-          action_type: selectedActions.length > 0 ? 'compliance' : 'no_action',
-          priority_level: priorityLevel,
-          summary: data.summary,
-          ai_reasoning: `AI extracted ${selectedActions.length} compliance actions from judgment`,
-          compliance_actions: selectedActions.map(a => ({
-            action: a.action,
-            priority: a.priority.toLowerCase(),
-            responsible_authority: a.department,
-            deadline: a.deadline
-          })),
-          responsible_departments: [...new Set(selectedActions.map(a => a.department))],
-          key_timelines: selectedActions.map(a => ({
-            action: a.action,
-            deadline: a.deadline,
-            priority: a.priority.toLowerCase()
-          }))
-        })
-
-      if (actionPlanError) {
-        throw new Error(`Failed to save action plan: ${actionPlanError.message}`)
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to save case');
       }
 
       toast.success("Case submitted successfully!")
@@ -573,10 +490,10 @@ function Step3Review({ data, setData, file, onNext }: { data: ExtractedData; set
 
             <div className="grid grid-cols-2 gap-3">
               {[
+                { label: "Case Title", value: data.caseTitle, key: "caseTitle" },
                 { label: "Case Number", value: data.caseNumber, key: "caseNumber" },
-                { label: "Court", value: data.court, key: "court" },
-                { label: "Department", value: data.department, key: "department" },
-                { label: "Date", value: data.dateOfJudgment, key: "dateOfJudgment" },
+                { label: "Court", value: data.courtName, key: "courtName" },
+                { label: "Judgment Date", value: data.judgmentDate, key: "judgmentDate" },
               ].map(({ label, value, key }) => (
                 <div key={key} className="space-y-1">
                   <Label className="text-xs text-muted-foreground">{label}</Label>
@@ -590,10 +507,10 @@ function Step3Review({ data, setData, file, onNext }: { data: ExtractedData; set
             </div>
 
             <div className="space-y-1">
-              <Label className="text-xs text-muted-foreground">Subject</Label>
+              <Label className="text-xs text-muted-foreground">Bench</Label>
               <Input
-                value={data.subject || ""}
-                onChange={e => setData({ ...data, subject: e.target.value })}
+                value={data.bench || ""}
+                onChange={e => setData({ ...data, bench: e.target.value })}
                 className="h-8 rounded-lg bg-background/50 text-sm"
               />
             </div>
@@ -610,9 +527,9 @@ function Step3Review({ data, setData, file, onNext }: { data: ExtractedData; set
             </div>
 
             <div className="space-y-3">
-              {data.complianceActions.map((a) => (
+              {data.complianceActions.map((a, idx) => (
                 <div
-                  key={a.id}
+                  key={a.id || idx}
                   className={cn(
                     "flex flex-col gap-2 p-4 rounded-xl border transition-all",
                     a.included ? "border-blue-500/30 bg-blue-500/5" : "border-border bg-background/30 opacity-60"
@@ -620,7 +537,7 @@ function Step3Review({ data, setData, file, onNext }: { data: ExtractedData; set
                 >
                   <div className="flex items-start gap-3">
                     <div
-                      onClick={() => toggleAction(a.id)}
+                      onClick={() => toggleAction(a.id || `action-${idx}`)}
                       className={cn(
                         "h-5 w-5 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 transition-all cursor-pointer",
                         a.included ? "border-blue-500 bg-blue-500" : "border-border hover:border-blue-500/50"
@@ -630,7 +547,7 @@ function Step3Review({ data, setData, file, onNext }: { data: ExtractedData; set
                     </div>
                     <div className="flex-1 space-y-2">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-muted-foreground">{a.directionNumber}</span>
+                        <span className="text-xs font-bold text-muted-foreground">Direction {idx + 1}</span>
                         <div className="flex items-center gap-2">
                           <StatusBadge status={a.priority.toLowerCase()} size="sm" />
                           <span className="text-[10px] px-2 py-0.5 rounded-full bg-secondary border border-border uppercase tracking-wide">
@@ -641,7 +558,7 @@ function Step3Review({ data, setData, file, onNext }: { data: ExtractedData; set
                       <textarea
                         value={a.action}
                         onChange={(e) => {
-                          const newActions = data.complianceActions.map(act => act.id === a.id ? { ...act, action: e.target.value } : act)
+                          const newActions = data.complianceActions.map((act, i) => (act.id === a.id || i === idx) ? { ...act, action: e.target.value } : act)
                           setData({ ...data, complianceActions: newActions })
                         }}
                         className="w-full bg-transparent text-sm resize-none focus:outline-none focus:ring-1 focus:ring-blue-500 rounded p-1 -ml-1 border border-transparent hover:border-border"
@@ -651,9 +568,9 @@ function Step3Review({ data, setData, file, onNext }: { data: ExtractedData; set
                         <div className="flex items-center gap-1.5 text-muted-foreground">
                           <Building2 className="h-3.5 w-3.5" />
                           <input
-                            value={a.department}
+                            value={a.responsibleDepartment}
                             onChange={(e) => {
-                              const newActions = data.complianceActions.map(act => act.id === a.id ? { ...act, department: e.target.value } : act)
+                              const newActions = data.complianceActions.map((act, i) => (act.id === a.id || i === idx) ? { ...act, responsibleDepartment: e.target.value } : act)
                               setData({ ...data, complianceActions: newActions })
                             }}
                             className="bg-transparent border-b border-transparent focus:border-blue-500 focus:outline-none w-24"
@@ -662,12 +579,13 @@ function Step3Review({ data, setData, file, onNext }: { data: ExtractedData; set
                         <div className="flex items-center gap-1.5 text-amber-400">
                           <Calendar className="h-3.5 w-3.5" />
                           <input
-                            value={a.deadline}
+                            value={a.deadline || ""}
                             onChange={(e) => {
-                              const newActions = data.complianceActions.map(act => act.id === a.id ? { ...act, deadline: e.target.value } : act)
+                              const newActions = data.complianceActions.map((act, i) => (act.id === a.id || i === idx) ? { ...act, deadline: e.target.value } : act)
                               setData({ ...data, complianceActions: newActions })
                             }}
                             className="bg-transparent border-b border-transparent focus:border-amber-500 focus:outline-none w-32"
+                            placeholder="YYYY-MM-DD"
                           />
                         </div>
                       </div>
@@ -685,21 +603,13 @@ function Step3Review({ data, setData, file, onNext }: { data: ExtractedData; set
             <h3 className="font-semibold text-sm border-b border-border pb-2">Analysis Overview</h3>
 
             <div>
-              <p className="text-xs text-muted-foreground mb-1">Risk Score</p>
-              <div className="flex items-center gap-2">
-                <div className="h-2 flex-1 bg-secondary rounded-full overflow-hidden">
-                  <div
-                    className={cn("h-full", data.riskScore > 7 ? "bg-red-500" : data.riskScore > 4 ? "bg-amber-500" : "bg-emerald-500")}
-                    style={{ width: `${(data.riskScore / 10) * 100}%` }}
-                  />
-                </div>
-                <span className="text-sm font-bold">{data.riskScore}/10</span>
-              </div>
+              <p className="text-xs text-muted-foreground mb-1">Judgment Date</p>
+              <p className="text-sm font-bold">{data.judgmentDate || "N/A"}</p>
             </div>
 
             <div>
-              <p className="text-xs text-muted-foreground mb-1">Case Priority</p>
-              <StatusBadge status={data.priority?.toLowerCase() || 'medium'} />
+              <p className="text-xs text-muted-foreground mb-1">Next Hearing</p>
+              <p className="text-sm font-semibold text-amber-400">{data.nextHearingDate || "None"}</p>
             </div>
 
             <div>
@@ -708,26 +618,22 @@ function Step3Review({ data, setData, file, onNext }: { data: ExtractedData; set
             </div>
 
             <div>
-              <p className="text-xs text-muted-foreground mb-1">Verdict</p>
-              <p className="text-sm font-semibold text-emerald-400">{data.verdict}</p>
+              <p className="text-xs text-muted-foreground mb-1">Penalties</p>
+              <p className="text-sm font-semibold text-red-400">{data.penalties || "None"}</p>
             </div>
           </div>
 
           <div className="rounded-2xl border border-border bg-card p-5 space-y-4">
-            <h3 className="font-semibold text-sm border-b border-border pb-2">Parties & Legal</h3>
+            <h3 className="font-semibold text-sm border-b border-border pb-2">Parties & Tags</h3>
             <div>
-              <p className="text-xs text-muted-foreground mb-1">Judges</p>
-              <div className="flex flex-wrap gap-1">
-                {data.judges?.map((j, i) => (
-                  <span key={i} className="text-xs bg-secondary px-2 py-1 rounded-md">{j}</span>
-                ))}
-              </div>
+              <p className="text-xs text-muted-foreground mb-1">Bench</p>
+              <p className="text-xs bg-secondary px-2 py-1 rounded-md">{data.bench || "N/A"}</p>
             </div>
             <div>
-              <p className="text-xs text-muted-foreground mb-1">Key Legal Sections</p>
+              <p className="text-xs text-muted-foreground mb-1">Tags</p>
               <div className="flex flex-wrap gap-1">
-                {data.keyLegalSections?.map((s, i) => (
-                  <span key={i} className="text-[10px] uppercase tracking-wide bg-blue-500/10 text-blue-400 px-2 py-1 rounded-md border border-blue-500/20">{s}</span>
+                {data.tags?.map((t, i) => (
+                  <span key={i} className="text-[10px] uppercase tracking-wide bg-blue-500/10 text-blue-400 px-2 py-1 rounded-md border border-blue-500/20">{t}</span>
                 ))}
               </div>
             </div>
@@ -807,13 +713,221 @@ function Step4Success({ onReset }: { onReset: () => void }) {
   )
 }
 
+/* ─── Bulk Upload Queue ─── */
+function BulkUploadQueue() {
+  const [uploadQueue, setUploadQueue] = useState<{
+    id: string;
+    file: File;
+    status: 'waiting' | 'processing' | 'done' | 'error';
+    result?: any;
+    error?: string;
+  }[]>([])
+  const [isProcessing, setIsProcessing] = useState(false)
+
+  const onDrop = useCallback((acceptedFiles: File[]) => {
+    const newItems = acceptedFiles.map(f => ({
+      id: Math.random().toString(36).substring(2),
+      file: f,
+      status: 'waiting' as const
+    }))
+    setUploadQueue(q => [...q, ...newItems])
+  }, [])
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: { "application/pdf": [".pdf"] },
+    maxSize: 50 * 1024 * 1024,
+    multiple: true,
+  })
+
+  const processQueue = async () => {
+    if (isProcessing) return
+    setIsProcessing(true)
+
+    const supabase = createClient()
+
+    for (let i = 0; i < uploadQueue.length; i++) {
+      let currentItem;
+      setUploadQueue(q => {
+        currentItem = q[i];
+        if (!currentItem || currentItem.status !== 'waiting') return q;
+        const newQ = [...q];
+        newQ[i] = { ...newQ[i], status: 'processing' };
+        return newQ;
+      });
+
+      // Need to grab current state again directly from state array since closure is tricky
+      // It's safer to just await inside the loop and trust the synchronous state read
+      if (!uploadQueue[i] || uploadQueue[i].status !== 'waiting') continue;
+
+      try {
+        const formData = new FormData()
+        formData.append("file", uploadQueue[i].file)
+
+        const response = await fetch("/api/analyze", {
+          method: "POST",
+          body: formData,
+        })
+
+        if (!response.ok) {
+          throw new Error("Failed to start analysis")
+        }
+
+        const result = await response.json()
+        if (!result.success || !result.data) {
+          throw new Error("No analysis data returned")
+        }
+
+        const extractedData = result.data;
+        // Add IDs to actions for bulk too
+        extractedData.complianceActions = extractedData.complianceActions.map((a: any, idx: number) => ({
+          ...a,
+          id: `bulk-action-${idx}`,
+          included: true
+        }))
+
+        const fileExt = uploadQueue[i].file.name.split('.').pop()
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`
+        const filePath = `judgments/${fileName}`
+
+        const { error: uploadError } = await supabase.storage.from('judgments').upload(filePath, uploadQueue[i].file)
+        if (uploadError) throw new Error(`Upload failed: ${uploadError.message}`)
+
+        const { data: { publicUrl } } = supabase.storage.from('judgments').getPublicUrl(filePath)
+
+        const saveRes = await fetch('/api/save-case', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            analysisData: extractedData,
+            caseNumber: extractedData.caseNumber,
+            department: extractedData.complianceActions?.[0]?.responsibleDepartment,
+            pdfUrl: publicUrl,
+            pdfFilename: uploadQueue[i].file.name
+          })
+        });
+
+        if (!saveRes.ok) {
+          const err = await saveRes.json();
+          throw new Error(err.error || 'Failed to save case');
+        }
+
+        setUploadQueue(q => {
+          const newQ = [...q];
+          newQ[i] = { ...newQ[i], status: 'done', result: extractedData };
+          return newQ;
+        });
+
+      } catch (error: any) {
+        setUploadQueue(q => {
+          const newQ = [...q];
+          newQ[i] = { ...newQ[i], status: 'error', error: error.message };
+          return newQ;
+        });
+      }
+    }
+    
+    setIsProcessing(false)
+  }
+
+  return (
+    <div className="space-y-6">
+      <div {...getRootProps()} className={cn("border-2 border-dashed rounded-2xl p-12 text-center cursor-pointer transition-all", isDragActive ? "border-blue-500 bg-blue-500/10" : "border-border hover:border-blue-500/50 hover:bg-blue-500/5")}>
+        <input {...getInputProps()} />
+        <UploadCloud className="h-10 w-10 mx-auto text-blue-400 mb-4" />
+        <p className="text-lg font-semibold mb-1">Drag & drop multiple PDFs</p>
+        <p className="text-sm text-muted-foreground">or click to browse files</p>
+      </div>
+
+      {uploadQueue.length > 0 && (
+        <div className="rounded-2xl border border-border bg-card p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold text-lg">Upload Queue</h3>
+            <Button onClick={processQueue} disabled={isProcessing || uploadQueue.every(q => q.status === 'done' || q.status === 'error')}>
+              {isProcessing ? "Processing..." : "Process Queue"}
+            </Button>
+          </div>
+          <div className="space-y-3">
+            {uploadQueue.map(item => (
+              <div key={item.id} className="flex items-center justify-between p-3 rounded-xl border border-border bg-secondary/30">
+                <div className="flex items-center gap-3">
+                  <FileText className="h-5 w-5 text-muted-foreground" />
+                  <span className="text-sm font-medium truncate max-w-[200px] sm:max-w-[300px]">{item.file.name}</span>
+                </div>
+                <div className="flex items-center gap-3 text-sm">
+                  {item.status === 'waiting' && <span className="text-muted-foreground">Waiting</span>}
+                  {item.status === 'processing' && <span className="text-blue-400 flex items-center gap-1"><Loader2 className="h-3 w-3 animate-spin"/> Processing</span>}
+                  {item.status === 'done' && <span className="text-emerald-400 flex items-center gap-1"><CheckCircle2 className="h-4 w-4"/> Done</span>}
+                  {item.status === 'error' && <span className="text-red-400 flex items-center gap-1" title={item.error}><AlertTriangle className="h-4 w-4"/> Error</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 /* ─── Main Page ─── */
 export default function UploadPage() {
   const [step, setStep] = useState(0)
   const [file, setFile] = useState<File | null>(null)
   const [extracted, setExtracted] = useState<ExtractedData | null>(null)
+  const [isAnalyzing, setIsAnalyzing] = useState(false)
 
-  const reset = () => { setStep(0); setFile(null); setExtracted(null) }
+  const handleStartAnalysis = async () => {
+    if (!file) {
+      toast.error('Please upload a PDF first');
+      return;
+    }
+
+    setIsAnalyzing(true);
+    setStep(1);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      // DO NOT set Content-Type header manually — browser sets it with boundary 
+
+      const response = await fetch('/api/analyze', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error ?? `Server error ${response.status}`);
+      }
+
+      if (!result.success || !result.data) {
+        throw new Error('No analysis data returned');
+      }
+
+      // Add 'included: true' to all actions by default
+      const processedData = {
+        ...result.data,
+        complianceActions: result.data.complianceActions.map((a: any, i: number) => ({ 
+          ...a, 
+          id: `action-${i}`,
+          included: true 
+        }))
+      }
+
+      setExtracted(processedData);
+      setStep(2); // Move to Review Extraction 
+      toast.success('Analysis complete!');
+    } catch (err: any) {
+      console.error('Analysis error:', err);
+      toast.error(err.message ?? 'Analysis failed');
+      setStep(0);
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  const reset = () => { setStep(0); setFile(null); setExtracted(null); setIsAnalyzing(false) }
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto pb-10">
@@ -822,39 +936,53 @@ export default function UploadPage() {
         <p className="text-muted-foreground mt-1">AI-powered 4-step judgment intake wizard.</p>
       </motion.div>
 
-      <div className="rounded-2xl border border-border bg-card p-6 sm:p-8">
-        <StepIndicator current={step} />
+      <Tabs defaultValue="single" className="w-full">
+        <TabsList className="mb-6 grid w-full grid-cols-2 max-w-sm mx-auto">
+          <TabsTrigger value="single">Single Upload Wizard</TabsTrigger>
+          <TabsTrigger value="bulk">Bulk Upload Queue</TabsTrigger>
+        </TabsList>
 
-        <AnimatePresence mode="wait">
-          {step === 0 && (
-            <Step1Upload key="s1" file={file} setFile={setFile} onNext={() => setStep(1)} />
-          )}
-          {step === 1 && file && (
-            <Step2Processing
-              key="s2"
-              file={file}
-              onComplete={data => { setExtracted(data); setStep(2) }}
-              onError={(msg) => {
-                toast.error(msg)
-                setStep(0)
-                setFile(null)
-              }}
-            />
-          )}
-          {step === 2 && extracted && file && (
-            <Step3Review
-              key="s3"
-              data={extracted}
-              setData={setExtracted}
-              file={file}
-              onNext={() => setStep(3)}
-            />
-          )}
-          {step === 3 && (
-            <Step4Success key="s4" onReset={reset} />
-          )}
-        </AnimatePresence>
-      </div>
+        <TabsContent value="single">
+          <div className="rounded-2xl border border-border bg-card p-6 sm:p-8">
+            <StepIndicator current={step} />
+
+            <AnimatePresence mode="wait">
+              {step === 0 && (
+                <Step1Upload 
+                  key="s1" 
+                  file={file} 
+                  setFile={setFile} 
+                  onNext={handleStartAnalysis} 
+                  isAnalyzing={isAnalyzing}
+                />
+              )}
+              {step === 1 && (
+                <div className="py-20 flex flex-col items-center justify-center space-y-4">
+                  <Loader2 className="h-12 w-12 text-blue-500 animate-spin" />
+                  <p className="text-lg font-medium">AI is analyzing your judgment...</p>
+                  <p className="text-sm text-muted-foreground">This may take up to a minute.</p>
+                </div>
+              )}
+              {step === 2 && extracted && file && (
+                <Step3Review
+                  key="s3"
+                  data={extracted}
+                  setData={setExtracted}
+                  file={file}
+                  onNext={() => setStep(3)}
+                />
+              )}
+              {step === 3 && (
+                <Step4Success key="s4" onReset={reset} />
+              )}
+            </AnimatePresence>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="bulk">
+          <BulkUploadQueue />
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }

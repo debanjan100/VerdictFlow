@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Bell, X, CheckCircle2, Clock, Upload, AlertTriangle } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { createClient } from "@/lib/supabase/client"
 
 interface Notification {
   id: string
@@ -14,49 +15,6 @@ interface Notification {
   read: boolean
 }
 
-const MOCK_NOTIFICATIONS: Notification[] = [
-  {
-    id: "n1",
-    type: "extraction",
-    title: "New Extraction Complete",
-    message: "WP(C) 4821/2024 — AI extraction finished. Ready for review.",
-    time: "2 min ago",
-    read: false,
-  },
-  {
-    id: "n2",
-    type: "deadline",
-    title: "Deadline Approaching",
-    message: "OA 765/2024 deadline passed. Contempt proceedings risk.",
-    time: "1 hr ago",
-    read: false,
-  },
-  {
-    id: "n3",
-    type: "approval",
-    title: "Case Verified",
-    message: "CWP 11203/2024 has been approved and marked verified.",
-    time: "3 hr ago",
-    read: false,
-  },
-  {
-    id: "n4",
-    type: "alert",
-    title: "Escalation Required",
-    message: "MA 4512/2024 — 5 days to NGT hearing. Action pending.",
-    time: "Yesterday",
-    read: true,
-  },
-  {
-    id: "n5",
-    type: "extraction",
-    title: "Upload Received",
-    message: "WP 6644/2024 uploaded by Officer Portal. Processing started.",
-    time: "Yesterday",
-    read: true,
-  },
-]
-
 const typeStyles = {
   extraction: { icon: Upload,        color: "text-blue-400",   bg: "bg-blue-500/10" },
   deadline:   { icon: Clock,         color: "text-red-400",    bg: "bg-red-500/10"  },
@@ -66,10 +24,45 @@ const typeStyles = {
 
 export function NotificationCenter() {
   const [open, setOpen] = useState(false)
-  const [notifications, setNotifications] = useState(MOCK_NOTIFICATIONS)
+  const [notifications, setNotifications] = useState<Notification[]>([])
   const ref = useRef<HTMLDivElement>(null)
+  const supabase = createClient()
 
-  const unread = notifications.filter(n => !n.read).length
+  useEffect(() => {
+    const fetchDeadlines = async () => {
+      // Get next 7 days date
+      const nextWeek = new Date()
+      nextWeek.setDate(nextWeek.getDate() + 7)
+      
+      const { data, error } = await supabase
+        .from('compliance_actions')
+        .select('*, cases(case_number)')
+        .lte('deadline', nextWeek.toISOString())
+        .not('status', 'eq', 'done')
+        .order('deadline', { ascending: true })
+
+      if (!error && data) {
+        const generatedNotifs: Notification[] = data.map((a: any) => {
+          const isOverdue = new Date(a.deadline) < new Date()
+          return {
+            id: a.id,
+            type: isOverdue ? 'alert' : 'deadline',
+            title: isOverdue ? 'Overdue Action' : 'Upcoming Deadline',
+            message: `${a.cases?.case_number || 'Case'}: ${a.action}`,
+            time: `Due: ${new Date(a.deadline).toLocaleDateString()}`,
+            read: false,
+          }
+        })
+        setNotifications(generatedNotifs)
+      }
+    }
+    
+    fetchDeadlines()
+    
+    // Check every 5 minutes
+    const interval = setInterval(fetchDeadlines, 5 * 60 * 1000)
+    return () => clearInterval(interval)
+  }, [])
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -78,6 +71,8 @@ export function NotificationCenter() {
     document.addEventListener("mousedown", handler)
     return () => document.removeEventListener("mousedown", handler)
   }, [])
+
+  const unread = notifications.filter(n => !n.read).length
 
   const markAllRead = () =>
     setNotifications(prev => prev.map(n => ({ ...n, read: true })))
@@ -115,13 +110,12 @@ export function NotificationCenter() {
             transition={{ duration: 0.18 }}
             className="absolute right-0 top-11 w-80 bg-card border border-border rounded-2xl shadow-2xl z-50 overflow-hidden"
           >
-            {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-border">
               <div className="flex items-center gap-2">
-                <span className="text-sm font-semibold">Notifications</span>
+                <span className="text-sm font-semibold">Action Deadlines</span>
                 {unread > 0 && (
                   <span className="px-1.5 py-0.5 bg-primary/20 text-primary text-[10px] rounded-full font-bold">
-                    {unread} new
+                    {unread} pending
                   </span>
                 )}
               </div>
@@ -135,7 +129,6 @@ export function NotificationCenter() {
               )}
             </div>
 
-            {/* List */}
             <div className="max-h-80 overflow-y-auto">
               {notifications.length === 0 ? (
                 <div className="p-8 text-center text-sm text-muted-foreground">
@@ -165,7 +158,7 @@ export function NotificationCenter() {
                         <p className="text-[10px] text-muted-foreground/60 mt-1">{n.time}</p>
                       </div>
                       <button
-                        onClick={() => dismiss(n.id)}
+                         onClick={(e) => { e.stopPropagation(); dismiss(n.id); }}
                         className="opacity-0 group-hover:opacity-100 transition-opacity mt-0.5 shrink-0"
                       >
                         <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
@@ -176,9 +169,8 @@ export function NotificationCenter() {
               )}
             </div>
 
-            {/* Footer */}
             <div className="px-4 py-3 border-t border-border text-center">
-              <button className="text-xs text-primary hover:underline">View all notifications</button>
+              <button className="text-xs text-primary hover:underline" onClick={() => window.location.href = '/compliance'}>View compliance board</button>
             </div>
           </motion.div>
         )}

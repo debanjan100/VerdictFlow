@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useCallback } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import {
   Search, Filter, ChevronUp, ChevronDown, ChevronLeft, ChevronRight,
@@ -19,47 +19,33 @@ import { toast } from "sonner"
 
 const PAGE_SIZE = 10
 
-// Database types
+// Database types matching Hackathon Schema
 interface DatabaseCase {
   id: string
   case_number: string | null
-  case_title: string | null
-  court_name: string | null
+  title: string | null
+  court: string | null
   judgment_date: string | null
   pdf_filename: string
   pdf_url: string
-  status: 'processing' | 'extracted' | 'pending_review' | 'verified' | 'rejected'
+  status: 'pending' | 'processing' | 'verified' | 'archived'
   created_at: string
   updated_at: string
-  uploaded_by: string | null
-  department_id: string | null
-  departments?: {
-    name: string
-    code: string
-  } | null
-  users?: {
-    full_name: string | null
-    email: string
-  } | null
-  extractions?: {
-    priority_level: 'critical' | 'high' | 'medium' | 'low' | null
-  }[] | null
-}
-
-interface CaseWithPriority extends DatabaseCase {
-  priority: 'critical' | 'high' | 'medium' | 'low'
+  created_by: string | null
+  department: string | null
+  priority: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW'
+  summary: string | null
 }
 
 type SortField = "case_number" | "judgment_date" | "priority" | "status" | "created_at"
 type SortDir = "asc" | "desc"
 
-const PRIORITY_ORDER: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 }
+const PRIORITY_ORDER: Record<string, number> = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 }
 const STATUS_ORDER: Record<string, number> = {
   processing: 0,
-  extracted: 1,
-  pending_review: 2,
-  verified: 3,
-  rejected: 4
+  pending: 1,
+  verified: 2,
+  archived: 3
 }
 
 /* ─── Filter Select ─── */
@@ -120,7 +106,7 @@ function EmptyState({ hasFilter, error }: { hasFilter: boolean; error?: string |
       </h3>
       <p className="text-sm text-muted-foreground max-w-xs mb-6">
         {error
-          ? "There was an error loading the cases. Please try again."
+          ? error
           : hasFilter
             ? "Try adjusting your filters or search term."
             : "Upload your first judgment to get started. AI will automatically extract compliance actions."}
@@ -151,117 +137,57 @@ export default function CasesPage() {
   const [sortField, setSortField] = useState<SortField>("created_at")
   const [sortDir, setSortDir] = useState<SortDir>("desc")
   const [page, setPage] = useState(1)
-  const [selected, setSelected] = useState<CaseWithPriority | null>(null)
-  const [cases, setCases] = useState<CaseWithPriority[]>([])
+  const [selected, setSelected] = useState<DatabaseCase | null>(null)
+  const [cases, setCases] = useState<DatabaseCase[]>([])
   const [departments, setDepartments] = useState<{ id: string; name: string }[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   const supabase = createClient()
-  const debouncedSearch = useDebounce(search, 300)
+  const debouncedSearch = useDebounce(search, 400)
 
-  // Fetch departments
+  // Fetch unique departments
   useEffect(() => {
     const fetchDepartments = async () => {
       try {
-        const { data, error } = await supabase
-          .from('departments')
-          .select('id, name')
-          .order('name')
-
+        const { data, error } = await supabase.from('cases').select('department').not('department', 'is', null)
         if (error) throw error
-        setDepartments(data || [])
+        // Unique departments
+        const depts = Array.from(new Set(data.map(d => d.department))).filter(Boolean)
+        setDepartments(depts.map((d: any) => ({ id: d, name: d })))
       } catch (err: any) {
         console.error('Error fetching departments:', err)
       }
     }
-
     fetchDepartments()
   }, [])
 
-  // Fetch cases
+  const loadCases = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const { data, error } = await supabase
+        .from('cases')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setCases(data ?? []);
+    } catch (err: any) {
+      console.error('fetchCases error:', err);
+      setError(err.message ?? 'Failed to load cases');
+      toast.error('Failed to load cases')
+    } finally {
+      setLoading(false)
+    }
+  }, [supabase])
+
   useEffect(() => {
-    const fetchCases = async () => {
-      try {
-        setLoading(true)
-        setError(null)
+    loadCases()
+  }, [loadCases])
 
-        let query = supabase
-          .from('cases')
-          .select(`
-            *,
-            departments:department_id (
-              name,
-              code
-            ),
-            users:uploaded_by (
-              full_name,
-              email
-            ),
-            extractions (
-              priority_level
-            )
-          `)
-          .order('created_at', { ascending: false })
-
-        const { data, error } = await query
-
-        if (error) throw error
-
-        // Transform data to include priority from extractions
-        const casesWithPriority: CaseWithPriority[] = (data || []).map((caseData: DatabaseCase) => ({
-          ...caseData,
-          priority: caseData.extractions?.[0]?.priority_level || 'medium'
-        }))
-
-        setCases(casesWithPriority)
-      } catch (err: any) {
-        console.error('Error fetching cases:', err)
-        setError(err.message || 'Failed to load cases')
-        toast.error('Failed to load cases')
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchCases()
-  }, [])
-
-  const filtered = useMemo(() => {
-    let rows = [...cases]
-
-    // Search
-    if (debouncedSearch) {
-      const q = debouncedSearch.toLowerCase()
-      rows = rows.filter(c =>
-        c.case_number?.toLowerCase().includes(q) ||
-        c.case_title?.toLowerCase().includes(q) ||
-        c.court_name?.toLowerCase().includes(q) ||
-        c.departments?.name?.toLowerCase().includes(q) ||
-        c.pdf_filename?.toLowerCase().includes(q)
-      )
-    }
-
-    // Filters
-    if (statusF) rows = rows.filter(c => c.status === statusF)
-    if (priorityF) rows = rows.filter(c => c.priority === priorityF)
-    if (deptF) rows = rows.filter(c => c.departments?.name === deptF)
-
-    // Sort
-    rows.sort((a, b) => {
-      let cmp = 0
-      if (sortField === "case_number") cmp = (a.case_number || "").localeCompare(b.case_number || "")
-      if (sortField === "judgment_date") cmp = new Date(a.judgment_date || 0).getTime() - new Date(b.judgment_date || 0).getTime()
-      if (sortField === "priority") cmp = (PRIORITY_ORDER[a.priority] ?? 9) - (PRIORITY_ORDER[b.priority] ?? 9)
-      if (sortField === "status") cmp = (STATUS_ORDER[a.status] ?? 9) - (STATUS_ORDER[b.status] ?? 9)
-      if (sortField === "created_at") cmp = new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-      return sortDir === "asc" ? cmp : -cmp
-    })
-    return rows
-  }, [cases, debouncedSearch, statusF, priorityF, deptF, sortField, sortDir])
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
-  const pageRows   = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+  const totalPages = Math.max(1, Math.ceil(cases.length / PAGE_SIZE))
+  const pageRows   = cases.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
   const hasFilter  = !!(debouncedSearch || statusF || priorityF || deptF)
 
   const handleSort = (field: SortField) => {
@@ -276,17 +202,16 @@ export default function CasesPage() {
 
   const statusOptions = [
     { value: "processing", label: "Processing" },
-    { value: "extracted", label: "Extracted" },
-    { value: "pending_review", label: "Pending Review" },
+    { value: "pending", label: "Pending" },
     { value: "verified", label: "Verified" },
-    { value: "rejected", label: "Rejected" },
+    { value: "archived", label: "Archived" },
   ]
 
   const priorityOptions = [
-    { value: "critical", label: "Critical" },
-    { value: "high", label: "High" },
-    { value: "medium", label: "Medium" },
-    { value: "low", label: "Low" },
+    { value: "CRITICAL", label: "Critical" },
+    { value: "HIGH", label: "High" },
+    { value: "MEDIUM", label: "Medium" },
+    { value: "LOW", label: "Low" },
   ]
 
   const departmentOptions = departments.map(dept => ({
@@ -311,7 +236,7 @@ export default function CasesPage() {
       >
         {[
           { label: "Total", value: cases.length, color: "bg-blue-500/15 text-blue-400" },
-          { label: "Pending", value: cases.filter(c => c.status === "pending_review").length, color: "bg-amber-500/15 text-amber-400" },
+          { label: "Pending", value: cases.filter(c => c.status === "pending").length, color: "bg-amber-500/15 text-amber-400" },
           { label: "Verified", value: cases.filter(c => c.status === "verified").length, color: "bg-emerald-500/15 text-emerald-400" },
           { label: "Processing", value: cases.filter(c => c.status === "processing").length, color: "bg-orange-500/15 text-orange-400" },
         ].map(chip => (
@@ -333,7 +258,7 @@ export default function CasesPage() {
           <div className="relative flex-1 min-w-[200px] max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search by case number, title, court..."
+              placeholder="Full-text search (case, title...)"
               value={search}
               onChange={e => { setSearch(e.target.value); setPage(1) }}
               className="pl-9 rounded-xl bg-secondary/50 border-border h-9"
@@ -394,10 +319,10 @@ export default function CasesPage() {
                         </span>
                       </td>
                       <td className="px-6 py-4 max-w-[180px]">
-                        <span className="line-clamp-2 text-xs">{c.case_title || "Untitled"}</span>
+                        <span className="line-clamp-2 text-xs">{c.title || "Untitled"}</span>
                       </td>
                       <td className="px-6 py-4 text-xs text-muted-foreground max-w-[150px]">
-                        <span className="line-clamp-1">{c.court_name || "Unknown"}</span>
+                        <span className="line-clamp-1">{c.court || "Unknown"}</span>
                       </td>
                       <td className="px-6 py-4 text-xs text-muted-foreground whitespace-nowrap">
                         {c.judgment_date
@@ -406,20 +331,21 @@ export default function CasesPage() {
                         }
                       </td>
                       <td className="px-6 py-4">
-                        <StatusBadge status={c.priority} size="sm" />
+                        <StatusBadge status={c.priority?.toLowerCase()} size="sm" />
                       </td>
                       <td className="px-6 py-4">
-                        <StatusBadge status={c.status} size="sm" />
+                        <StatusBadge status={c.status?.toLowerCase()} size="sm" />
                       </td>
                       <td className="px-6 py-4">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={e => { e.stopPropagation(); setSelected(c) }}
-                          className="text-xs h-7 px-3 rounded-lg text-primary hover:bg-primary/10"
-                        >
-                          View →
-                        </Button>
+                        <Link href={`/cases/${c.id}`} onClick={e => e.stopPropagation()}>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-xs h-7 px-3 rounded-lg text-primary hover:bg-primary/10"
+                          >
+                            View Details →
+                          </Button>
+                        </Link>
                       </td>
                     </motion.tr>
                   ))}
@@ -430,10 +356,10 @@ export default function CasesPage() {
         </div>
 
         {/* Pagination */}
-        {filtered.length > 0 && (
+        {cases.length > 0 && (
           <div className="flex items-center justify-between px-6 py-4 border-t border-border">
             <span className="text-xs text-muted-foreground">
-              Showing {Math.min((page - 1) * PAGE_SIZE + 1, filtered.length)}–{Math.min(page * PAGE_SIZE, filtered.length)} of {filtered.length} cases
+              Showing {Math.min((page - 1) * PAGE_SIZE + 1, cases.length)}–{Math.min(page * PAGE_SIZE, cases.length)} of {cases.length} cases
             </span>
             <div className="flex items-center gap-2">
               <Button
@@ -469,9 +395,6 @@ export default function CasesPage() {
           </div>
         )}
       </motion.div>
-
-      {/* Case Detail Drawer */}
-      <CaseDrawer caseData={selected} onClose={() => setSelected(null)} />
     </div>
   )
 }

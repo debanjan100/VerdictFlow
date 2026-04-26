@@ -1,14 +1,56 @@
 "use client"
 
 import { motion } from "framer-motion"
-import { ArrowRight, Play, ShieldCheck, Zap, Activity } from "lucide-react"
+import { ArrowRight, Play, ShieldCheck, Zap, Activity, Loader2 } from "lucide-react"
 import { useAuthModal } from "@/hooks/useAuthModal"
+import { useState } from "react"
+import { toast } from "sonner"
 
 const text = "Transform Court Judgments Into Action — Instantly."
 const words = text.split(" ")
 
 export default function Hero() {
   const { openModal } = useAuthModal()
+  const [isRedirecting, setIsRedirecting] = useState(false)
+
+  const handleWatchDemo = async () => {
+    const demoUrl = "https://drive.google.com/file/d/1KDG4CQEainFTFahQD1kF8VtAhOLgdzMg/view?usp=sharing"
+    
+    setIsRedirecting(true)
+    
+    try {
+      // Analytics tracking (placeholder for actual implementation)
+      console.log(`[Analytics] Demo button clicked at ${new Date().toISOString()}`)
+      
+      // Implement timeout handling for slow connections
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 8000)
+
+      // Fallback mechanism check (optional HEAD request to check availability)
+      // For Google Drive, we'll just try to open it
+      
+      const newWindow = window.open(demoUrl, '_blank', 'noopener,noreferrer')
+      
+      if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
+        throw new Error('Popup blocked. Please allow popups for this site.')
+      }
+
+      clearTimeout(timeoutId)
+      toast.success('Opening demo video...')
+    } catch (err: any) {
+      console.error('Redirect error:', err)
+      toast.error(err.message || 'Failed to open demo. Please check your browser settings.')
+      
+      // Fallback: copy to clipboard or show link
+      const fallback = confirm('Could not open automatically. Copy link to clipboard instead?')
+      if (fallback) {
+        navigator.clipboard.writeText(demoUrl)
+        toast.success('Link copied to clipboard!')
+      }
+    } finally {
+      setIsRedirecting(false)
+    }
+  }
 
   return (
     <div className="relative min-h-screen flex items-center justify-center overflow-hidden pt-20">
@@ -97,8 +139,17 @@ export default function Hero() {
             >
               Get Started Free <ArrowRight className="w-5 h-5" />
             </button>
-            <button className="inline-flex justify-center items-center gap-2 h-14 px-8 rounded-xl bg-slate-800/50 hover:bg-slate-800 border border-slate-700 text-white font-semibold text-lg transition-all backdrop-blur-sm">
-              <Play className="w-5 h-5 fill-current" /> Watch Demo
+            <button 
+              onClick={handleWatchDemo}
+              disabled={isRedirecting}
+              className="inline-flex justify-center items-center gap-2 h-14 px-8 rounded-xl bg-slate-800/50 hover:bg-slate-800 border border-slate-700 text-white font-semibold text-lg transition-all backdrop-blur-sm disabled:opacity-50"
+            >
+              {isRedirecting ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <Play className="w-5 h-5 fill-current" />
+              )}
+              {isRedirecting ? 'Redirecting...' : 'Watch Demo'}
             </button>
           </motion.div>
         </div>

@@ -5,22 +5,52 @@
 @tailwind utilities;
 
 :root {
-  /* Raw Design Tokens */
-  --bg: #080c14;
-  --surface: #0d1424;
-  --surface2: #111827;
-  --border-raw: #1e2d45;
-  --gold: #f59e0b;
-  --gold2: #fbbf24;
-  --blue: #3b82f6;
-  --blue2: #60a5fa;
-  --text: #f0f4ff;
-  --muted-raw: #8899bb;
-  --danger: #ef4444;
-  --success-raw: #22c55e;
-  --warn: #f59e0b;
+  /* ─── Shadcn/Tailwind CSS Variables (Light Mode) ─── */
+  --background: 210 40% 98%;       /* #f8fafc */
+  --foreground: 222 47% 11%;       /* #0f172a */
 
-  /* ─── Shadcn/Tailwind CSS Variables (MUST match tailwind.config.ts) ─── */
+  --card: 0 0% 100%;               /* #ffffff */
+  --card-foreground: 222 47% 11%;
+
+  --popover: 0 0% 100%;
+  --popover-foreground: 222 47% 11%;
+
+  --primary: 221 83% 53%;          /* #2563eb blue-600 */
+  --primary-foreground: 210 40% 98%;
+
+  --secondary: 210 40% 96%;        /* #f1f5f9 */
+  --secondary-foreground: 222 47% 11%;
+
+  --muted: 210 40% 96%;
+  --muted-foreground: 215 16% 47%; /* #64748b */
+
+  --accent: 38 92% 50%;            /* #f59e0b gold */
+  --accent-foreground: 222 47% 11%;
+
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 210 40% 98%;
+
+  --border: 214 32% 91%;           /* #e2e8f0 */
+  --input: 214 32% 91%;
+  --ring: 221 83% 53%;
+
+  --radius: 0.75rem;
+
+  /* Extended Tokens (Light) */
+  --success: 142 71% 45%;
+  --success-foreground: 210 40% 98%;
+  --warning: 38 92% 50%;
+  --warning-foreground: 222 47% 11%;
+
+  --bg: #f8fafc;
+  --text: #0f172a;
+  --glass-bg: rgba(255, 255, 255, 0.7);
+  --glass-border: rgba(0, 0, 0, 0.05);
+  --glow-blue: rgba(37, 99, 235, 0.15);
+}
+
+.dark {
+  /* ─── Shadcn/Tailwind CSS Variables (Dark Mode) ─── */
   --background: 220 43% 5%;        /* #080c14 */
   --foreground: 224 100% 97%;      /* #f0f4ff */
 
@@ -36,41 +66,25 @@
   --secondary: 221 39% 11%;        /* #111827 */
   --secondary-foreground: 210 40% 98%;
 
-  --muted: 221 39% 11%;            /* FIXED: was --muted-shadcn */
+  --muted: 221 39% 11%;
   --muted-foreground: 220 27% 63%; /* #8899bb */
 
-  --accent: 37 90% 50%;            /* FIXED: was --accent-shadcn — gold #f59e0b */
+  --accent: 37 90% 50%;            /* gold #f59e0b */
   --accent-foreground: 210 40% 98%;
 
-  --destructive: 0 84% 60%;        /* #ef4444 */
+  --destructive: 0 84% 60%;
   --destructive-foreground: 210 40% 98%;
 
-  --border: 217 39% 19%;           /* FIXED: was --border-shadcn — #1e2d45 */
+  --border: 217 39% 19%;           /* #1e2d45 */
   --input: 217 39% 19%;
   --ring: 217 91% 60%;
 
-  --radius: 0.625rem;
-
-  /* ─── Extended Design Tokens ─── */
-  --success: 142 71% 45%;          /* #22c55e */
-  --success-foreground: 210 40% 98%;
-  --warning: 37 90% 50%;           /* #f59e0b */
-  --warning-foreground: 222 47% 10%;
-
-  /* Glassmorphism */
+  /* Extended Tokens (Dark) */
+  --bg: #080c14;
+  --text: #f0f4ff;
   --glass-bg: rgba(13, 20, 36, 0.6);
   --glass-border: rgba(255, 255, 255, 0.08);
-  --glass-blur: 16px;
-
-  /* Glow colors */
   --glow-blue: rgba(59, 130, 246, 0.35);
-  --glow-gold: rgba(245, 158, 11, 0.35);
-  --glow-green: rgba(34, 197, 94, 0.35);
-  --glow-red: rgba(239, 68, 68, 0.35);
-}
-
-.dark {
-  /* Already dark by default — keep same values */
 }
 
 @layer base {

@@ -13,36 +13,25 @@ in strict JSON format. Do not include any text outside the JSON object.
 
 Return this exact JSON structure:
 {
+  "caseTitle": "string — full title like Petitioner vs Respondent",
   "caseNumber": "string — e.g. WP(C) No. 1234/2024",
-  "court": "string — e.g. Supreme Court of India",
-  "department": "string — e.g. Ministry of Environment, Forest & Climate Change",
-  "dateOfJudgment": "string — DD Month YYYY format",
-  "dateOfFiling": "string — DD Month YYYY format or null",
-  "judges": ["array of judge names as strings"],
-  "petitioners": ["array of petitioner names"],
-  "respondents": ["array of respondent names"],
-  "caseType": "string — PIL / Civil Appeal / Criminal Appeal / Writ Petition / etc.",
-  "subject": "string — one-line subject matter of the case",
+  "courtName": "string — e.g. Supreme Court of India",
+  "judgmentDate": "YYYY-MM-DD or null",
+  "bench": "string — Judge names or null",
   "summary": "string — 3-4 sentence plain-English summary of the judgment",
-  "verdict": "string — Allowed / Dismissed / Disposed / Remanded / Partly Allowed",
-  "priority": "CRITICAL | HIGH | MEDIUM | LOW — based on urgency of compliance deadlines",
+  "keyDirectives": ["array of major directives or orders from the court"],
   "complianceActions": [
     {
-      "id": "string — unique id like DIR-001",
-      "directionNumber": "string — e.g. Direction 1",
-      "department": "string — which government department must act",
       "action": "string — what exactly must be done (full description)",
-      "deadline": "string — exact deadline date or duration like Within 30 days",
-      "deadlineDate": "string — calculated ISO date if possible, else null",
-      "priority": "CRITICAL | HIGH | MEDIUM | LOW",
-      "category": "Financial | Structural | Reporting | Enforcement | Monitoring | Other"
+      "responsibleDepartment": "string — which government department must act",
+      "deadline": "YYYY-MM-DD or null",
+      "priority": "HIGH | MEDIUM | LOW",
+      "category": "FINANCIAL | INFRASTRUCTURE | POLICY | REPORTING | OTHER"
     }
   ],
   "penalties": "string — any fines or costs imposed, or null",
-  "nextHearingDate": "string — if mentioned, else null",
-  "keyLegalSections": ["array of laws/sections cited e.g. Article 21, Section 15 EPA"],
-  "estimatedComplianceDays": 0,
-  "riskScore": 0
+  "nextHearingDate": "YYYY-MM-DD or null",
+  "tags": ["array of laws/sections cited e.g. Article 21, Section 15 EPA"]
 }
 `
 
@@ -74,37 +63,33 @@ export async function POST(req: NextRequest) {
         }
 
         const arrayBuffer = await file.arrayBuffer()
-        const buffer = Buffer.from(arrayBuffer)
-        
-        let pdfText = ""
-        try {
-          const pdfData = await pdfParse(buffer)
-          pdfText = pdfData.text
-          
-          if (!pdfText || pdfText.trim().length < 50) {
-            throw new Error("This PDF appears to be a scanned image. Please upload a text-based PDF or use OCR first.")
-          }
-        } catch (parseError) {
-          throw new Error("Could not parse this file. Please ensure it is a valid PDF document.")
-        }
+        const base64Data = Buffer.from(arrayBuffer).toString('base64')
 
-        sendEvent({ stage: "extracting", message: "Extracting case information...", progress: 30 })
+        sendEvent({ stage: "extracting", message: "Sending to Gemini AI...", progress: 30 })
 
         const genAI = new GoogleGenerativeAI(GEMINI_API_KEY)
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" })
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" })
 
-        const prompt = `${SYSTEM_PROMPT}\n\nHere is the judgment text to analyze:\n\n${pdfText}`
+        const prompt = SYSTEM_PROMPT
 
-        sendEvent({ stage: "analyzing", message: "Analyzing judgment text with Gemini...", progress: 50 })
+        sendEvent({ stage: "analyzing", message: "Analyzing legal language...", progress: 50 })
 
-        const resultStream = await model.generateContentStream(prompt)
+        const resultStream = await model.generateContentStream([
+          {
+            inlineData: {
+              mimeType: 'application/pdf',
+              data: base64Data,
+            },
+          },
+          { text: prompt },
+        ])
         
         let fullText = ""
         let isGenerating = false
         
         for await (const chunk of resultStream.stream) {
           if (!isGenerating) {
-            sendEvent({ stage: "generating", message: "Generating structured action plan...", progress: 75 })
+            sendEvent({ stage: "generating", message: "Extracting compliance actions...", progress: 75 })
             isGenerating = true
           }
           fullText += chunk.text()
