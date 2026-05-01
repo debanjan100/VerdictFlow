@@ -28,47 +28,47 @@ export default function Navbar() {
   }
 
   return (
-    <nav className={`fixed top-0 w-full z-[100] h-[68px] transition-all duration-300 ${scrolled ? 'backdrop-blur-md bg-background/80 border-b border-border' : 'bg-transparent'}`}>
-      <div className="max-w-7xl mx-auto px-4 h-full flex items-center justify-between">
+    <nav className={`fixed top-0 w-full z-[100] h-[72px] transition-all duration-500 ${scrolled ? 'backdrop-blur-xl bg-background/60 border-b border-white/5 shadow-2xl' : 'bg-transparent'}`}>
+      <div className="max-w-7xl mx-auto px-6 h-full flex items-center justify-between">
         
         {/* Logo */}
-        <div className="flex items-center space-x-3 cursor-pointer" onClick={() => window.scrollTo({top:0, behavior:'smooth'})}>
-          <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-amber-500 to-blue-600 flex items-center justify-center shadow-lg">
+        <div className="flex items-center space-x-3 cursor-pointer group" onClick={() => window.scrollTo({top:0, behavior:'smooth'})}>
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg group-hover:shadow-blue-500/20 transition-all">
             <Scale className="text-white w-5 h-5" />
           </div>
-          <span className="font-playfair font-bold text-xl tracking-wide text-foreground">VerdictFlow</span>
+          <span className="font-playfair font-black text-2xl tracking-tight text-foreground bg-clip-text">VerdictFlow</span>
         </div>
 
         {/* Center Links (Desktop) */}
-        <div className="hidden md:flex items-center space-x-8 text-sm font-medium text-muted-foreground">
-          <button onClick={() => scrollToSection('features')} className="hover:text-foreground transition-colors">Features</button>
-          <button onClick={() => scrollToSection('how-it-works')} className="hover:text-foreground transition-colors">How It Works</button>
-          <button onClick={() => scrollToSection('pipeline')} className="hover:text-foreground transition-colors">Pipeline</button>
-          <button onClick={() => scrollToSection('contact')} className="hover:text-foreground transition-colors">Contact</button>
+        <div className="hidden md:flex items-center space-x-10 text-xs font-black uppercase tracking-[0.15em] text-muted-foreground/80">
+          <button onClick={() => scrollToSection('features')} className="hover:text-blue-500 transition-colors relative after:absolute after:bottom-[-4px] after:left-0 after:w-0 after:h-[2px] after:bg-blue-500 hover:after:w-full after:transition-all">Features</button>
+          <button onClick={() => scrollToSection('how-it-works')} className="hover:text-blue-500 transition-colors relative after:absolute after:bottom-[-4px] after:left-0 after:w-0 after:h-[2px] after:bg-blue-500 hover:after:w-full after:transition-all">Intelligence</button>
+          <button onClick={() => scrollToSection('pipeline')} className="hover:text-blue-500 transition-colors relative after:absolute after:bottom-[-4px] after:left-0 after:w-0 after:h-[2px] after:bg-blue-500 hover:after:w-full after:transition-all">Pipeline</button>
+          <button onClick={() => scrollToSection('contact')} className="hover:text-blue-500 transition-colors relative after:absolute after:bottom-[-4px] after:left-0 after:w-0 after:h-[2px] after:bg-blue-500 hover:after:w-full after:transition-all">Contact</button>
         </div>
 
         {/* Right Buttons (Desktop) */}
-        <div className="hidden md:flex items-center space-x-4">
+        <div className="hidden md:flex items-center space-x-6">
           {mounted && (
             <button
               onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              className="p-2 rounded-full hover:bg-secondary transition-colors text-foreground"
+              className="p-2.5 rounded-xl hover:bg-white/5 transition-all text-muted-foreground hover:text-foreground border border-transparent hover:border-white/10"
               aria-label="Toggle theme"
             >
-              {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+              {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </button>
           )}
           <button 
             onClick={() => openModal('login')}
-            className="px-5 py-2 text-sm font-medium text-amber-500 border border-border rounded-full hover:border-amber-500 transition-colors"
+            className="text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-blue-400 transition-colors"
           >
             Log In
           </button>
           <button 
             onClick={() => openModal('signup')}
-            className="px-5 py-2 text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-blue-500 rounded-full hover:-translate-y-[1px] hover:shadow-[0_0_15px_rgba(26,111,216,0.5)] transition-all"
+            className="h-11 px-6 text-xs font-black uppercase tracking-widest text-white bg-blue-600 rounded-xl hover:bg-blue-500 hover:shadow-[0_0_20px_rgba(37,99,235,0.4)] transition-all transform hover:-translate-y-0.5 active:scale-95"
           >
-            Get Started →
+            Get Started
           </button>
         </div>
 

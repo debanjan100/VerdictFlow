@@ -14,7 +14,7 @@ const steps = [
   {
     num: "02",
     title: "AI Analyzes",
-    description: "Our Gemini-powered engine extracts key metadata and identifies all compliance directives instantly.",
+    description: "Groq Llama 3.3 70B extracts key metadata and identifies all compliance directives in seconds.",
     icon: BrainCircuit,
     color: "from-emerald-500 to-green-400"
   },
@@ -36,7 +36,7 @@ const steps = [
 
 export default function HowItWorks() {
   return (
-    <section className="py-24 relative bg-[#0a0f1e]">
+    <section id="how-it-works" className="py-24 relative bg-[#0a0f1e]">
       <div className="container mx-auto px-6">
         <div className="text-center max-w-2xl mx-auto mb-20">
           <motion.h2 

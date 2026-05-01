@@ -1,98 +1,57 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import { createClient } from '@/lib/supabase/server';
+import { callGroq } from '@/lib/gemini/client';
 
-const EXTRACTION_SYSTEM_PROMPT = `
-You are a legal document analyst specializing in Indian court judgments. 
-Analyze the provided court judgment PDF and extract the following information with high precision.
-
-Return ONLY a valid JSON object with this exact structure:
+const PROMPT = `You are a legal document analyst for Indian courts.
+Extract from this judgment and return ONLY raw JSON (no markdown):
 {
-  "case_number": "exact case number as written",
-  "case_title": "petitioner vs respondent format",
-  "petitioner": "name of petitioner",
-  "respondent": "name of respondent / government department",
-  "court_name": "name of court",
-  "judge_name": "name of judge(s)",
-  "date_of_order": "YYYY-MM-DD format",
-  "key_directions": [
-    {
-      "direction_number": 1,
-      "text": "exact direction text",
-      "category": "compliance|payment|appointment|policy_change|inquiry|other",
-      "addressee": "which department/authority this is directed to",
-      "has_deadline": true,
-      "deadline_text": "as mentioned in judgment or null"
-    }
-  ],
-  "parties_involved": [
-    {
-      "name": "party name",
-      "role": "petitioner|respondent|intervenor|amicus",
-      "represented_by": "advocate name if mentioned"
-    }
-  ],
-  "timelines": [
-    {
-      "event": "what must happen",
-      "date": "YYYY-MM-DD or null",
-      "date_text": "as written in judgment",
-      "is_inferred": false,
-      "days_from_order": null
-    }
-  ],
-  "appeal_limitation_period": "X weeks/months as mentioned or null",
+  "case_number": "exact case number",
+  "case_title": "petitioner vs respondent",
+  "petitioner": "petitioner name",
+  "respondent": "respondent name",
+  "court_name": "court name",
+  "judge_name": "judge name(s)",
+  "date_of_order": "YYYY-MM-DD or null",
+  "key_directions": [{"direction_number":1,"text":"direction","category":"compliance","addressee":"department","has_deadline":true,"deadline_text":"date or null"}],
+  "parties_involved": [{"name":"party","role":"petitioner|respondent","represented_by":"advocate or null"}],
+  "timelines": [{"event":"what must happen","date":"YYYY-MM-DD or null","date_text":"as written","is_inferred":false,"days_from_order":null}],
+  "appeal_limitation_period": "X weeks or null",
   "case_outcome": "allowed|dismissed|disposed|partly_allowed|remanded",
-  "subject_matter": "brief topic like land acquisition, service matter, etc.",
-  "confidence_score": 0.95,
-  "extraction_notes": "any ambiguities or issues found"
-}
+  "subject_matter": "brief topic",
+  "confidence_score": 0.9,
+  "extraction_notes": "any notes or null"
+}`;
 
-Be thorough. If information is not found, use null. Do not hallucinate.
-`;
+function parseJSON(raw: string): any {
+  try {
+    return JSON.parse(raw.replace(/^```json\s*/im, '').replace(/^```\s*/im, '').replace(/\s*```$/im, '').trim());
+  } catch {}
+  const s = raw.indexOf('{'), e = raw.lastIndexOf('}');
+  if (s !== -1 && e > s) return JSON.parse(raw.substring(s, e + 1));
+  throw new Error('Could not parse AI response');
+}
 
 export async function POST(req: NextRequest) {
   try {
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const { caseId, pdfBase64 } = await req.json();
+    if (!caseId || !pdfBase64) return NextResponse.json({ error: 'Missing caseId or pdfBase64' }, { status: 400 });
 
-    if (!caseId || !pdfBase64) {
-      return NextResponse.json({ error: 'Missing caseId or pdfBase64' }, { status: 400 });
-    }
-
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-pro' });
-    
-    // Call Gemini API with the PDF
-    const result = await model.generateContent([
-      {
-        inlineData: {
-          mimeType: 'application/pdf',
-          data: pdfBase64,
-        },
-      },
-      { text: EXTRACTION_SYSTEM_PROMPT },
-    ]);
-
-    const output = result.response.text();
-    
-    // Parse JSON
-    let extractedData;
+    const buffer = Buffer.from(pdfBase64, 'base64');
+    let pdfText = '';
     try {
-      const jsonStr = output.replace(/```json/g, '').replace(/```/g, '').trim();
-      extractedData = JSON.parse(jsonStr);
-    } catch (e) {
-      console.error('Failed to parse Gemini output as JSON:', output);
-      return NextResponse.json({ error: 'Failed to parse AI output' }, { status: 500 });
+      const pdfParse = (await import('pdf-parse')).default;
+      pdfText = (await pdfParse(buffer)).text?.trim() || '';
+    } catch {
+      pdfText = buffer.toString('utf-8', 0, 15000);
     }
 
-    // Update case status and create extraction record
+    const raw = await callGroq(`${PROMPT}\n\nJudgment text:\n\n${pdfText.substring(0, 28000)}`);
+    const extractedData = parseJSON(raw);
+
     const { data: extraction, error: extractionError } = await supabase
       .from('extractions')
       .insert({
@@ -112,31 +71,16 @@ export async function POST(req: NextRequest) {
         subject_matter: extractedData.subject_matter,
         confidence_score: extractedData.confidence_score,
         extraction_notes: extractedData.extraction_notes,
-        ai_model_used: 'gemini-1.5-pro'
+        ai_model_used: 'groq/llama-3.3-70b-versatile'
       })
-      .select()
-      .single();
+      .select().single();
 
-    if (extractionError) {
-      console.error('Database error:', extractionError);
-      return NextResponse.json({ error: 'Database error' }, { status: 500 });
-    }
+    if (extractionError) throw extractionError;
 
-    // Update case status
     await supabase.from('cases').update({ status: 'extracted' }).eq('id', caseId);
-
-    // Audit log
-    await supabase.from('audit_logs').insert({
-      user_id: user.id,
-      case_id: caseId,
-      action: 'extracted',
-      details: { extraction_id: extraction.id }
-    });
-
     return NextResponse.json({ success: true, extraction });
-
-  } catch (error) {
-    console.error('Extraction API error:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+  } catch (error: any) {
+    console.error('[extract]', error.message);
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

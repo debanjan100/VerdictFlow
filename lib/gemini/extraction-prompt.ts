@@ -8,7 +8,7 @@ export const getExtractionPrompt = (text: string) => `
 Analyze the following court judgment/order and extract the information into the JSON format below.
 
 DOCUMENT TEXT:
-${text.substring(0, 30000)} // Limiting length just in case it's huge, but Gemini 1.5 Pro handles 2M tokens
+${text.substring(0, 30000)} // Limiting length to stay within API limits
 
 REQUIRED JSON SCHEMA:
 {

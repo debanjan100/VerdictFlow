@@ -36,6 +36,8 @@ interface ExtractedData {
   judgmentDate: string | null
   bench: string | null
   summary: string
+  riskScore: number
+  estimatedComplianceDays: number
   keyDirectives: string[]
   complianceActions: ComplianceAction[]
   penalties: string | null
@@ -115,105 +117,187 @@ function Step1Upload({
 
   const { onDrag: _onDrag, onDragStart: _onDragStart, onDragEnd: _onDragEnd, ...rootProps } = getRootProps()
 
+  const features = [
+    { icon: BrainCircuit, label: "Groq Llama 3.3 70B", color: "text-orange-400 bg-orange-500/10 border-orange-500/20" },
+    { icon: ShieldCheck, label: "End-to-End Encrypted", color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20" },
+    { icon: Scale, label: "Indian Legal Context", color: "text-amber-400 bg-amber-500/10 border-amber-500/20" },
+  ]
+
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-6">
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-5">
+      {/* Feature badges */}
+      <div className="flex flex-wrap gap-2 justify-center">
+        {features.map(({ icon: Icon, label, color }) => (
+          <div key={label} className={cn("inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[11px] font-semibold uppercase tracking-wide", color)}>
+            <Icon className="h-3.5 w-3.5" />
+            {label}
+          </div>
+        ))}
+      </div>
+
+      {/* Drop zone */}
       <div {...rootProps}>
         <motion.div
           animate={shake ? { x: [-8, 8, -8, 8, 0] } : {}}
           transition={{ duration: 0.4 }}
           className={cn(
-            "relative border-2 border-dashed rounded-2xl p-12 text-center cursor-pointer transition-all duration-300 group",
+            "relative rounded-2xl text-center cursor-pointer transition-all duration-300 group overflow-hidden",
             isDragActive
-              ? "border-blue-500 bg-blue-500/10 scale-[1.02]"
+              ? "border-2 border-blue-500 bg-blue-950/60 scale-[1.01]"
               : file
-                ? "border-emerald-500 bg-emerald-500/5"
-                : "border-border hover:border-blue-500/50 hover:bg-blue-500/5",
+                ? "border-2 border-emerald-500 bg-emerald-950/30"
+                : "border-2 border-dashed border-white/10 hover:border-blue-500/40 hover:bg-blue-950/20",
             isAnalyzing && "opacity-50 cursor-not-allowed"
           )}
         >
           <input {...getInputProps()} />
 
-          {/* Animated dashed border overlay */}
-          <div className="absolute inset-0 rounded-2xl overflow-hidden pointer-events-none">
-            <svg className="absolute inset-0 w-full h-full" preserveAspectRatio="none">
-              <rect
-                x="1" y="1" width="calc(100% - 2)" height="calc(100% - 2)"
-                rx="15" fill="none" stroke={isDragActive ? "#3b82f6" : "transparent"}
-                strokeWidth="2" strokeDasharray="8 4"
-                style={{ animation: isDragActive ? "dash-rotate 1s linear infinite" : "none" }}
-              />
-            </svg>
-          </div>
-
-          <div className={cn(
-            "h-16 w-16 rounded-2xl flex items-center justify-center mx-auto mb-4 transition-all duration-300",
-            file ? "bg-emerald-500/15" : "bg-blue-500/10 group-hover:bg-blue-500/15"
-          )}>
-            {file
-              ? <CheckCircle2 className="h-8 w-8 text-emerald-400" />
-              : <UploadCloud className={cn("h-8 w-8 transition-transform duration-300", isDragActive ? "scale-125 text-blue-400" : "text-blue-400/70 group-hover:scale-110")} />}
-          </div>
-
-          {file ? (
-            <div>
-              <p className="text-lg font-semibold text-emerald-400 mb-1">File ready</p>
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-sm">
-                <FileText className="h-4 w-4 text-emerald-400 shrink-0" />
-                <span className="font-medium truncate max-w-[200px]">{file.name}</span>
-                <span className="text-muted-foreground text-xs shrink-0">{(file.size / 1024 / 1024).toFixed(2)} MB</span>
-              </div>
-              <p className="text-xs text-muted-foreground mt-3">Click or drag to replace</p>
-            </div>
-          ) : (
-            <div>
-              <p className="text-lg font-semibold mb-1">
-                {isDragActive ? "Drop it here!" : "Drag & drop your PDF"}
-              </p>
-              <p className="text-sm text-muted-foreground">or click to browse files</p>
-              <p className="text-xs text-muted-foreground/60 mt-2">PDF only · Max 50 MB</p>
-            </div>
+          {/* Glow blobs */}
+          {!file && (
+            <>
+              <div className="absolute -top-8 -left-8 w-40 h-40 bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />
+              <div className="absolute -bottom-8 -right-8 w-40 h-40 bg-violet-600/10 rounded-full blur-3xl pointer-events-none" />
+            </>
           )}
+          {file && (
+            <div className="absolute inset-0 bg-gradient-to-br from-emerald-900/20 via-transparent to-emerald-900/10 pointer-events-none" />
+          )}
+
+          <div className="relative p-10 sm:p-14">
+            {/* Icon */}
+            <div className="relative mx-auto mb-5 w-fit">
+              {[0, 1].map(i => (
+                <motion.div
+                  key={i}
+                  animate={isDragActive ? { scale: [1, 1.4, 1], opacity: [0.2, 0.5, 0.2] } : { scale: 1, opacity: 0 }}
+                  transition={{ duration: 1.5, delay: i * 0.4, repeat: Infinity }}
+                  className="absolute inset-0 rounded-2xl bg-blue-500/20"
+                />
+              ))}
+              <div className={cn(
+                "h-20 w-20 rounded-2xl flex items-center justify-center transition-all duration-500 shadow-2xl",
+                file
+                  ? "bg-gradient-to-br from-emerald-500 to-emerald-600 shadow-emerald-500/30"
+                  : isDragActive
+                    ? "bg-gradient-to-br from-blue-500 to-violet-600 shadow-blue-500/40 scale-110"
+                    : "bg-gradient-to-br from-blue-600/30 to-violet-600/20 border border-white/10 group-hover:from-blue-600/40 group-hover:to-violet-600/30"
+              )}>
+                {file
+                  ? <CheckCircle2 className="h-10 w-10 text-white" />
+                  : <UploadCloud className={cn("h-10 w-10 transition-all duration-300", isDragActive ? "text-white scale-110" : "text-blue-400/80 group-hover:text-blue-300")} />}
+              </div>
+            </div>
+
+            <AnimatePresence mode="wait">
+              {file ? (
+                <motion.div key="ready" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}>
+                  <p className="text-xl font-bold text-emerald-400 mb-3">Document Ready</p>
+                  <div className="inline-flex items-center gap-3 px-5 py-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-sm max-w-xs">
+                    <div className="h-9 w-9 rounded-lg bg-emerald-500/20 flex items-center justify-center shrink-0">
+                      <FileText className="h-5 w-5 text-emerald-400" />
+                    </div>
+                    <div className="text-left min-w-0">
+                      <p className="font-semibold truncate">{file.name}</p>
+                      <p className="text-emerald-400/60 text-xs">{(file.size / 1024 / 1024).toFixed(2)} MB · PDF</p>
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-3 flex items-center justify-center gap-1">
+                    <RotateCcw className="h-3 w-3" /> Click to replace
+                  </p>
+                </motion.div>
+              ) : (
+                <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                  <p className="text-xl font-bold mb-2">
+                    {isDragActive ? (
+                      <span className="text-blue-400">Release to upload ✦</span>
+                    ) : (
+                      "Drop your judgment PDF here"
+                    )}
+                  </p>
+                  <p className="text-muted-foreground text-sm mb-4">or <span className="text-blue-400 font-semibold">click to browse</span> your files</p>
+                  <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground/60">
+                    <span className="flex items-center gap-1"><FileText className="h-3 w-3" /> PDF only</span>
+                    <span className="w-px h-3 bg-border" />
+                    <span>Max 50 MB</span>
+                    <span className="w-px h-3 bg-border" />
+                    <span>Text-based PDFs</span>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         </motion.div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      {/* Metadata fields */}
+      <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
-          <Label htmlFor="caseNum" className="text-xs">Case Number (Optional)</Label>
-          <Input id="caseNum" placeholder="e.g. WP(C) 1234/2024" className="rounded-xl bg-secondary/50" disabled={isAnalyzing} />
+          <Label htmlFor="caseNum" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Case Number <span className="normal-case font-normal">(Optional)</span></Label>
+          <div className="relative">
+            <Gavel className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <Input id="caseNum" placeholder="e.g. WP(C) 1234/2024" className="pl-9 rounded-xl bg-card border-white/10 focus:border-blue-500/50 h-10 text-sm" disabled={isAnalyzing} />
+          </div>
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="dept" className="text-xs">Department (Optional)</Label>
-          <select id="dept" className="flex h-9 w-full rounded-xl border border-input bg-secondary/50 px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" disabled={isAnalyzing}>
-            <option value="">Auto-detect</option>
-            <option value="revenue">Revenue</option>
-            <option value="pwd">PWD</option>
-            <option value="health">Health</option>
-            <option value="environment">Environment</option>
-          </select>
+          <Label htmlFor="dept" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Department <span className="normal-case font-normal">(Optional)</span></Label>
+          <div className="relative">
+            <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground z-10" />
+            <select
+              id="dept"
+              className="flex h-10 w-full rounded-xl border border-white/10 bg-card pl-9 pr-3 py-1 text-sm transition-colors focus:outline-none focus:border-blue-500/50"
+              disabled={isAnalyzing}
+            >
+              <option value="">Auto-detect</option>
+              <option value="revenue">Revenue</option>
+              <option value="pwd">PWD</option>
+              <option value="health">Health</option>
+              <option value="environment">Environment</option>
+            </select>
+          </div>
         </div>
       </div>
 
+      {/* CTA Button */}
       <Button
         size="lg"
-        className="w-full h-12 rounded-xl text-base shadow-lg shadow-blue-500/20 gap-2"
+        className={cn(
+          "w-full h-13 rounded-xl text-base font-bold gap-2.5 transition-all duration-300",
+          file && !isAnalyzing
+            ? "bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-500 hover:to-violet-500 shadow-lg shadow-blue-600/30 text-white"
+            : "opacity-50"
+        )}
         disabled={!file || isAnalyzing}
         onClick={onNext}
+        style={{ height: '52px' }}
       >
-        {isAnalyzing ? (
-          <>
-            <Loader2 className="h-5 w-5 animate-spin" />
-            Analyzing...
-          </>
-        ) : (
-          <>
-            Start AI Analysis <ArrowRight className="h-5 w-5" />
-          </>
-        )}
+        <AnimatePresence mode="wait">
+          {isAnalyzing ? (
+            <motion.span key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center gap-2">
+              <Loader2 className="h-5 w-5 animate-spin" />
+              Sending to Groq AI...
+            </motion.span>
+          ) : (
+            <motion.span key="idle" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center gap-2">
+              <BrainCircuit className="h-5 w-5" />
+              Analyze with Groq AI
+              <ArrowRight className="h-5 w-5" />
+            </motion.span>
+          )}
+        </AnimatePresence>
       </Button>
 
-      <div className="flex items-start gap-3 p-4 rounded-xl bg-secondary/40 border border-border text-xs text-muted-foreground">
-        <ShieldCheck className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
-        <p>All uploads are encrypted at rest and in transit. Documents are not used to train public AI models.</p>
+      {/* Security note */}
+      <div className="flex items-center justify-center gap-6 py-1">
+        {[
+          { icon: ShieldCheck, text: "AES-256 encrypted" },
+          { icon: Scale, text: "Not used for training" },
+          { icon: Sparkles, text: "Government-grade" },
+        ].map(({ icon: Icon, text }) => (
+          <div key={text} className="flex items-center gap-1.5 text-[11px] text-muted-foreground/70">
+            <Icon className="h-3 w-3 text-emerald-400" />
+            {text}
+          </div>
+        ))}
       </div>
     </motion.div>
   )
@@ -301,7 +385,7 @@ function Step2Processing({ file, onComplete, onError }: { file: File; onComplete
   const steps = [
     { id: "parsing", label: "Parsing PDF document", icon: FileText },
     { id: "extracting", label: "Extracting case information", icon: Eye },
-    { id: "analyzing", label: "Analyzing judgment with Gemini", icon: BrainCircuit },
+    { id: "analyzing", label: "Analyzing judgment with Grok AI", icon: BrainCircuit },
     { id: "generating", label: "Generating structured action plan", icon: FileSignature },
   ]
 
@@ -602,6 +686,31 @@ function Step3Review({ data, setData, file, onNext }: { data: ExtractedData; set
           <div className="rounded-2xl border border-border bg-card p-5 space-y-4">
             <h3 className="font-semibold text-sm border-b border-border pb-2">Analysis Overview</h3>
 
+            <div className="grid grid-cols-2 gap-4">
+              <div className="p-3 rounded-xl bg-secondary/50 border border-border">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Risk Score</p>
+                <div className="flex items-center gap-2">
+                  <span className={cn(
+                    "text-lg font-bold",
+                    data.riskScore >= 7 ? "text-red-400" : data.riskScore >= 4 ? "text-amber-400" : "text-emerald-400"
+                  )}>{data.riskScore}/10</span>
+                  <div className="h-1.5 flex-1 bg-secondary rounded-full overflow-hidden">
+                    <div 
+                      className={cn(
+                        "h-full rounded-full",
+                        data.riskScore >= 7 ? "bg-red-500" : data.riskScore >= 4 ? "bg-amber-500" : "bg-emerald-500"
+                      )} 
+                      style={{ width: `${data.riskScore * 10}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="p-3 rounded-xl bg-secondary/50 border border-border">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Est. Days</p>
+                <p className="text-lg font-bold text-blue-400">{data.estimatedComplianceDays || "30"}</p>
+              </div>
+            </div>
+
             <div>
               <p className="text-xs text-muted-foreground mb-1">Judgment Date</p>
               <p className="text-sm font-bold">{data.judgmentDate || "N/A"}</p>
@@ -888,12 +997,19 @@ export default function UploadPage() {
     try {
       const formData = new FormData();
       formData.append('file', file);
-      // DO NOT set Content-Type header manually — browser sets it with boundary 
 
       const response = await fetch('/api/analyze', {
         method: 'POST',
         body: formData,
       });
+
+      // Check if response is JSON
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        const text = await response.text();
+        console.error("Non-JSON response received:", text);
+        throw new Error(`Server returned unexpected format (Status: ${response.status}). Please check API configuration.`);
+      }
 
       const result = await response.json();
 
@@ -905,13 +1021,17 @@ export default function UploadPage() {
         throw new Error('No analysis data returned');
       }
 
-      // Add 'included: true' to all actions by default
+      // Safely map complianceActions — guard against null/undefined
+      const rawActions = Array.isArray(result.data.complianceActions)
+        ? result.data.complianceActions
+        : [];
+
       const processedData = {
         ...result.data,
-        complianceActions: result.data.complianceActions.map((a: any, i: number) => ({ 
-          ...a, 
+        complianceActions: rawActions.map((a: any, i: number) => ({
+          ...a,
           id: `action-${i}`,
-          included: true 
+          included: true
         }))
       }
 
@@ -931,37 +1051,73 @@ export default function UploadPage() {
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto pb-10">
-      <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
-        <h1 className="text-3xl font-extrabold tracking-tight">Upload Judgment</h1>
-        <p className="text-muted-foreground mt-1">AI-powered 4-step judgment intake wizard.</p>
+      {/* Page header */}
+      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex items-start justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
+              <UploadCloud className="h-4 w-4 text-white" />
+            </div>
+            <h1 className="text-3xl font-black tracking-tight">Upload <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-violet-400">Judgment</span></h1>
+          </div>
+          <p className="text-muted-foreground text-sm font-medium">AI-powered 4-step judgment intake · Powered by Groq Llama 3.3 70B</p>
+        </div>
+        <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-violet-500/10 border border-violet-500/20 text-xs text-violet-400 font-semibold">
+          <div className="h-1.5 w-1.5 rounded-full bg-violet-400 animate-pulse" />
+          Groq AI Ready
+        </div>
       </motion.div>
 
       <Tabs defaultValue="single" className="w-full">
-        <TabsList className="mb-6 grid w-full grid-cols-2 max-w-sm mx-auto">
-          <TabsTrigger value="single">Single Upload Wizard</TabsTrigger>
-          <TabsTrigger value="bulk">Bulk Upload Queue</TabsTrigger>
+        <TabsList className="mb-6 grid w-full grid-cols-2 max-w-sm rounded-xl bg-card border border-white/10">
+          <TabsTrigger value="single" className="rounded-lg text-xs font-semibold">Single Wizard</TabsTrigger>
+          <TabsTrigger value="bulk" className="rounded-lg text-xs font-semibold">Bulk Queue</TabsTrigger>
         </TabsList>
 
         <TabsContent value="single">
-          <div className="rounded-2xl border border-border bg-card p-6 sm:p-8">
+          <div className="rounded-2xl border border-white/8 bg-card/80 backdrop-blur-sm p-6 sm:p-8 shadow-xl shadow-black/20">
             <StepIndicator current={step} />
 
             <AnimatePresence mode="wait">
               {step === 0 && (
-                <Step1Upload 
-                  key="s1" 
-                  file={file} 
-                  setFile={setFile} 
-                  onNext={handleStartAnalysis} 
+                <Step1Upload
+                  key="s1"
+                  file={file}
+                  setFile={setFile}
+                  onNext={handleStartAnalysis}
                   isAnalyzing={isAnalyzing}
                 />
               )}
               {step === 1 && (
-                <div className="py-20 flex flex-col items-center justify-center space-y-4">
-                  <Loader2 className="h-12 w-12 text-blue-500 animate-spin" />
-                  <p className="text-lg font-medium">AI is analyzing your judgment...</p>
-                  <p className="text-sm text-muted-foreground">This may take up to a minute.</p>
-                </div>
+                <motion.div
+                  key="processing"
+                  initial={{ opacity: 0, scale: 0.97 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="py-16 flex flex-col items-center justify-center space-y-6"
+                >
+                  <div className="relative">
+                    {[0, 1, 2].map(i => (
+                      <motion.div
+                        key={i}
+                        animate={{ scale: [1, 1.5, 1], opacity: [0.3, 0.1, 0.3] }}
+                        transition={{ duration: 2, delay: i * 0.6, repeat: Infinity }}
+                        className="absolute inset-0 rounded-full bg-violet-500/20"
+                      />
+                    ))}
+                    <div className="relative h-20 w-20 rounded-2xl bg-gradient-to-br from-blue-600/20 to-violet-600/20 border border-white/10 flex items-center justify-center">
+                      <BrainCircuit className="h-10 w-10 text-violet-400 animate-pulse" />
+                    </div>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-xl font-bold mb-1">Groq AI is analyzing...</p>
+                    <p className="text-sm text-muted-foreground">Extracting compliance directives from your judgment</p>
+                  </div>
+                  <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-violet-500/10 border border-violet-500/20 text-xs text-violet-400 font-medium">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    This may take 30–60 seconds
+                  </div>
+                </motion.div>
               )}
               {step === 2 && extracted && file && (
                 <Step3Review

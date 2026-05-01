@@ -6,7 +6,7 @@ import { BrainCircuit, Zap, ListChecks, Clock, Building2, BarChart3 } from "luci
 const features = [
   {
     title: "AI-Powered Extraction",
-    description: "Gemini 1.5 Flash reads and understands complex legal language with 94%+ accuracy.",
+    description: "Groq Llama 3.3 70B reads and understands complex legal language with 94%+ accuracy.",
     icon: BrainCircuit,
     color: "from-blue-500 to-cyan-400"
   },
@@ -56,7 +56,7 @@ const itemVariants = {
 
 export default function Features() {
   return (
-    <section className="py-24 relative overflow-hidden bg-[#0a0f1e]">
+    <section id="features" className="py-24 relative overflow-hidden bg-[#0a0f1e]">
       <div className="container mx-auto px-6 relative z-10">
         <div className="text-center max-w-2xl mx-auto mb-16">
           <motion.div

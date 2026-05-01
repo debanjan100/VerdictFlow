@@ -22,10 +22,12 @@ export async function POST(req: NextRequest) {
         title: analysisData.caseTitle || 'Untitled Case',
         court: analysisData.courtName,
         judgment_date: analysisData.judgmentDate ? new Date(analysisData.judgmentDate).toISOString().split('T')[0] : null,
-        status: 'pending',
+        status: 'pending_review',
         priority: analysisData.complianceActions?.[0]?.priority || 'MEDIUM',
         department: department || analysisData.complianceActions?.[0]?.responsibleDepartment,
         summary: analysisData.summary,
+        risk_score: analysisData.riskScore,
+        estimated_compliance_days: analysisData.estimatedComplianceDays,
         tags: analysisData.tags || [],
         penalties: analysisData.penalties,
         next_hearing_date: analysisData.nextHearingDate ? new Date(analysisData.nextHearingDate).toISOString().split('T')[0] : null,
@@ -33,7 +35,6 @@ export async function POST(req: NextRequest) {
         pdf_url: pdfUrl,
         pdf_filename: pdfFilename,
         created_by: user.id,
-        // Optimistic locking / versioning placeholder
         version: 1
       })
       .select()
@@ -52,11 +53,14 @@ export async function POST(req: NextRequest) {
           case_id: caseRow.id,
           action: a.action,
           responsible_department: a.responsibleDepartment,
-          deadline: a.deadline ? new Date(a.deadline).toISOString().split('T')[0] : null,
+          deadline: (() => {
+            if (!a.deadline) return null;
+            const d = new Date(a.deadline);
+            return isNaN(d.getTime()) ? null : d.toISOString().split('T')[0];
+          })(),
           priority: a.priority || 'MEDIUM',
           category: a.category || 'OTHER',
           status: 'pending',
-          assigned_to: null,
         }));
 
       if (actions.length > 0) {

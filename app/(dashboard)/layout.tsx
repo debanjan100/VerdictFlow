@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils"
 import { createBrowserClient } from "@supabase/ssr"
 import { NotificationCenter } from "@/components/dashboard/NotificationCenter"
 import { GlobalSearch } from "@/components/dashboard/GlobalSearch"
+import { useTheme } from "next-themes"
 
 const NAV_ITEMS = [
   { name: "Dashboard",       href: "/dashboard",      icon: Home,        badge: null },
@@ -27,7 +28,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const pathname  = usePathname()
   const router    = useRouter()
   const [collapsed, setCollapsed] = useState(false)
-  const [darkMode,  setDarkMode]  = useState(true)
+  const { theme, setTheme } = useTheme()
+  const [mounted, setMounted] = useState(false)
 
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -41,9 +43,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   // Persist collapse state
   useEffect(() => {
+    setMounted(true)
     const saved = localStorage.getItem("sidebar-collapsed")
     if (saved !== null) setCollapsed(saved === "true")
   }, [])
+
   const toggleCollapsed = () => {
     setCollapsed(c => {
       const next = !c
@@ -55,6 +59,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const userInitials = "OP"
   const userRole     = "Gov. Officer"
   const userName     = "Officer Portal"
+
+  if (!mounted) return null
+
+  const isDark = theme === "dark"
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -79,7 +87,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   initial={{ opacity: 0, x: -8 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -8 }}
-                  className="font-bold text-base tracking-tight whitespace-nowrap"
+                  className="font-bold text-base tracking-tight whitespace-nowrap text-foreground"
                 >
                   VerdictFlow
                 </motion.span>
@@ -170,7 +178,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   exit={{ opacity: 0 }}
                   className="flex-1 min-w-0"
                 >
-                  <p className="text-xs font-semibold truncate">{userName}</p>
+                  <p className="text-xs font-semibold truncate text-foreground">{userName}</p>
                   <span className="inline-flex items-center px-1.5 py-0.5 rounded-full bg-blue-500/15 text-blue-400 text-[10px] font-medium">
                     {userRole}
                   </span>
@@ -181,18 +189,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
           {/* Theme toggle */}
           <button
-            onClick={() => setDarkMode(d => !d)}
-            title={collapsed ? (darkMode ? "Light Mode" : "Dark Mode") : undefined}
+            onClick={() => setTheme(isDark ? "light" : "dark")}
+            title={collapsed ? (isDark ? "Light Mode" : "Dark Mode") : undefined}
             className={cn(
               "flex items-center rounded-xl text-sm text-muted-foreground hover:bg-secondary/70 hover:text-foreground transition-colors",
               collapsed ? "justify-center h-10 w-10 mx-auto" : "gap-3 px-3 py-2 w-full"
             )}
           >
-            {darkMode ? <Sun className="h-4 w-4 shrink-0" /> : <Moon className="h-4 w-4 shrink-0" />}
+            {isDark ? <Sun className="h-4 w-4 shrink-0" /> : <Moon className="h-4 w-4 shrink-0" />}
             <AnimatePresence>
               {!collapsed && (
                 <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                  {darkMode ? "Light Mode" : "Dark Mode"}
+                  {isDark ? "Light Mode" : "Dark Mode"}
                 </motion.span>
               )}
             </AnimatePresence>
@@ -258,7 +266,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </motion.aside>
 
       {/* ──── MAIN ──── */}
-      <main className="flex-1 flex flex-col min-h-screen overflow-hidden">
+      <main className="flex-1 flex flex-col min-h-screen overflow-hidden bg-background">
         {/* Top Header */}
         <header className="h-16 border-b border-border bg-card/80 backdrop-blur-sm flex items-center justify-between px-6 shrink-0 sticky top-0 z-20">
           {/* Mobile logo */}
@@ -266,7 +274,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <div className="h-7 w-7 rounded-lg bg-blue-600 flex items-center justify-center">
               <Scale className="h-3.5 w-3.5 text-white" />
             </div>
-            <span className="font-bold text-sm">VerdictFlow</span>
+            <span className="font-bold text-sm text-foreground">VerdictFlow</span>
           </div>
 
           {/* Desktop breadcrumb */}
@@ -284,7 +292,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             {/* Avatar */}
             <div className="flex items-center gap-2 pl-2 border-l border-border">
               <div className="hidden sm:block text-right">
-                <p className="text-xs font-semibold leading-tight">{userName}</p>
+                <p className="text-xs font-semibold leading-tight text-foreground">{userName}</p>
                 <p className="text-[10px] text-muted-foreground">{userRole}</p>
               </div>
               <div className="h-8 w-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-xs font-bold text-white">

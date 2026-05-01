@@ -16,7 +16,7 @@ const testimonials = [
     name: "Priya Sharma",
     title: "Chief Compliance Officer",
     department: "Public Works Department",
-    quote: "The accuracy of the Gemini AI engine is astounding. It catches nuanced directives and financial penalties that humans occasionally missed during manual review.",
+    quote: "The accuracy of the Grok AI engine is astounding. It catches nuanced directives and financial penalties that humans occasionally missed during manual review.",
     initials: "PS",
     color: "bg-emerald-500"
   },

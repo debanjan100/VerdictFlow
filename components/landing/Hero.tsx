@@ -91,6 +91,9 @@ export default function Hero() {
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-semibold uppercase tracking-wide">
               <Activity className="w-3.5 h-3.5" /> Used by 12+ departments
             </div>
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-500/10 border border-orange-500/20 text-orange-400 text-xs font-semibold uppercase tracking-wide">
+              <Zap className="w-3.5 h-3.5" /> Powered by Groq Llama 3.3 70B
+            </div>
           </motion.div>
 
           {/* Word-by-word reveal */}
@@ -124,32 +127,32 @@ export default function Hero() {
             transition={{ delay: 0.8, duration: 0.5 }}
             className="text-lg lg:text-xl text-slate-400 mb-10 leading-relaxed"
           >
-            VerdictFlow uses AI to extract compliance obligations from court PDFs and turn them into trackable action plans for government departments.
+            VerdictFlow uses <span className="text-orange-400 font-semibold">Groq Llama 3.3 70B</span> to extract compliance obligations from court PDFs and turn them into trackable action plans for government departments.
           </motion.p>
 
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 1, duration: 0.5 }}
-            className="flex flex-col sm:flex-row gap-4"
+            className="flex flex-col sm:flex-row gap-5"
           >
             <button 
               onClick={() => openModal('signup')}
-              className="inline-flex justify-center items-center gap-2 h-14 px-8 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-lg transition-all shadow-[0_0_20px_rgba(37,99,235,0.4)] hover:shadow-[0_0_30px_rgba(37,99,235,0.6)] transform hover:-translate-y-0.5"
+              className="group inline-flex justify-center items-center gap-3 h-16 px-10 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-black text-xs uppercase tracking-[0.2em] transition-all shadow-[0_0_30px_rgba(37,99,235,0.4)] hover:shadow-[0_0_50px_rgba(37,99,235,0.6)] transform hover:-translate-y-1 active:scale-[0.98]"
             >
-              Get Started Free <ArrowRight className="w-5 h-5" />
+              Analyze Judgment <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
             </button>
             <button 
               onClick={handleWatchDemo}
               disabled={isRedirecting}
-              className="inline-flex justify-center items-center gap-2 h-14 px-8 rounded-xl bg-slate-800/50 hover:bg-slate-800 border border-slate-700 text-white font-semibold text-lg transition-all backdrop-blur-sm disabled:opacity-50"
+              className="inline-flex justify-center items-center gap-3 h-16 px-10 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-white font-black text-xs uppercase tracking-[0.2em] transition-all backdrop-blur-md disabled:opacity-50 transform hover:-translate-y-1 active:scale-[0.98]"
             >
               {isRedirecting ? (
                 <Loader2 className="w-5 h-5 animate-spin" />
               ) : (
-                <Play className="w-5 h-5 fill-current" />
+                <Play className="w-4 h-4 fill-current ml-1" />
               )}
-              {isRedirecting ? 'Redirecting...' : 'Watch Demo'}
+              {isRedirecting ? 'Processing...' : 'Watch Demo'}
             </button>
           </motion.div>
         </div>
@@ -245,6 +248,17 @@ export default function Hero() {
         </motion.div>
 
       </div>
+
+      {/* Scroll Indicator */}
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 2, duration: 1 }}
+        className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2"
+      >
+        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/50">Explore System</span>
+        <div className="w-[1px] h-12 bg-gradient-to-b from-blue-500 to-transparent opacity-50" />
+      </motion.div>
     </div>
   )
 }

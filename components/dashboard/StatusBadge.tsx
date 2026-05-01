@@ -22,7 +22,7 @@ const statusConfig: Record<
   { label: string; className: string; pulse?: boolean }
 > = {
   pending:        { label: "Pending",      className: "bg-amber-500/15 text-amber-400 border border-amber-500/30" },
-  pending_review: { label: "Pending",      className: "bg-amber-500/15 text-amber-400 border border-amber-500/30" },
+  pending_review: { label: "Pending Review", className: "bg-amber-500/15 text-amber-400 border border-amber-500/30" },
   verified:       { label: "Verified",     className: "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30" },
   escalated:      { label: "Escalated",    className: "bg-red-500/15 text-red-400 border border-red-500/30" },
   in_review:      { label: "In Review",    className: "bg-blue-500/15 text-blue-400 border border-blue-500/30" },
